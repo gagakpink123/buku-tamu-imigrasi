@@ -432,7 +432,7 @@ export default function App() {
         {/* HEADER SECTION */}
         <div className="bg-gradient-to-r from-[#003B73] via-[#004B93] to-[#002D59] rounded-3xl p-5 sm:p-7 shadow-[0_8px_30px_rgba(0,59,115,0.25)] text-white transition-all">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="flex items-center gap-4.5">
+            <div className="flex items-center gap-6 sm:gap-8">
               <div className="flex-shrink-0">
                 <ImmigrationLogo className="w-16 h-20 sm:w-20 sm:h-24" />
               </div>
