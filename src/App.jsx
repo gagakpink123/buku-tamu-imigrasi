@@ -34,125 +34,16 @@ import {
   ArrowLeft
 } from 'lucide-react';
 
-// --- LOGO RESMI IMIGRASI (BHUMI PURA WIRA WIBAWA) TANPA BORDER, LEBIH BESAR ---
+// --- LOGO MENGGUNAKAN FILE GAMBAR PNG/JPG ---
 function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
   return (
-    <svg
-      viewBox="0 0 500 580"
-      className={className}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <radialGradient id="shieldGrad" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#1e3a8a" />
-          <stop offset="100%" stopColor="#0a192f" />
-        </radialGradient>
-        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FDE047" />
-          <stop offset="50%" stopColor="#EAB308" />
-          <stop offset="100%" stopColor="#A16207" />
-        </linearGradient>
-      </defs>
-
-      {/* Pita Bawah: BHUMI PURA WIRA WIBAWA */}
-      <g>
-        <path
-          d="M 50 420 C 130 520, 370 520, 450 420 L 485 455 C 380 575, 120 575, 15 455 Z"
-          fill="#0a192f"
-        />
-        <path
-          d="M 60 415 C 140 515, 360 515, 440 415 L 465 440 C 375 550, 125 550, 35 440 Z"
-          fill="#FFFFFF"
-          stroke="#1e293b"
-          strokeWidth="3"
-        />
-        <path
-          id="lowerRibbonPath"
-          d="M 65 445 C 150 540, 350 540, 435 445"
-          fill="none"
-        />
-        <text fill="#0a192f" fontSize="23" fontWeight="900" letterSpacing="4.5" fontFamily="sans-serif">
-          <textPath href="#lowerRibbonPath" startOffset="50%" textAnchor="middle">
-            BHUMI PURA  WIRA WIBAWA
-          </textPath>
-        </text>
-      </g>
-
-      {/* Tameng Utama Perisai */}
-      <path
-        d="M 250 25 C 350 25, 430 45, 430 110 C 430 310, 390 440, 250 520 C 110 440, 70 310, 70 110 C 70 45, 150 25, 250 25 Z"
-        fill="url(#shieldGrad)"
-        stroke="url(#goldGrad)"
-        strokeWidth="16"
-        strokeLinejoin="round"
-      />
-      {/* Tali Tambang Emas */}
-      <path
-        d="M 250 35 C 340 35, 415 55, 415 115 C 415 300, 380 425, 250 502 C 120 425, 85 300, 85 115 C 85 55, 160 35, 250 35 Z"
-        fill="none"
-        stroke="#FEF08A"
-        strokeWidth="4"
-        strokeDasharray="8 6"
-      />
-
-      {/* Bintang Emas */}
-      <polygon
-        points="250,95 264,136 307,136 272,161 285,202 250,177 215,202 228,161 193,136 236,136"
-        fill="url(#goldGrad)"
-      />
-
-      {/* Gapura / Candi Bentar */}
-      <g fill="url(#goldGrad)">
-        <rect x="180" y="160" width="30" height="14" rx="2" />
-        <rect x="172" y="176" width="38" height="14" rx="2" />
-        <rect x="164" y="192" width="46" height="15" rx="2" />
-        <rect x="156" y="209" width="54" height="16" rx="2" />
-        <rect x="148" y="227" width="62" height="17" rx="2" />
-        <rect x="140" y="246" width="70" height="19" rx="2" />
-        <rect x="132" y="267" width="78" height="21" rx="2" />
-
-        <rect x="290" y="160" width="30" height="14" rx="2" />
-        <rect x="290" y="176" width="38" height="14" rx="2" />
-        <rect x="290" y="192" width="46" height="15" rx="2" />
-        <rect x="290" y="209" width="54" height="16" rx="2" />
-        <rect x="290" y="227" width="62" height="17" rx="2" />
-        <rect x="290" y="246" width="70" height="19" rx="2" />
-        <rect x="290" y="267" width="78" height="21" rx="2" />
-
-        <rect x="120" y="290" width="260" height="18" rx="2" />
-        <rect x="108" y="310" width="284" height="22" rx="2" />
-      </g>
-
-      {/* Daun Padi Emas */}
-      <g fill="none" stroke="url(#goldGrad)" strokeWidth="5" strokeLinecap="round">
-        <path d="M 125 320 C 85 240, 95 160, 205 130" />
-        <path d="M 375 320 C 415 240, 405 160, 295 130" />
-      </g>
-
-      {/* Pita Tengah: IMIGRASI */}
-      <g>
-        <path
-          d="M 115 330 C 180 395, 320 395, 385 330 L 398 375 C 320 445, 180 445, 102 375 Z"
-          fill="#FFFFFF"
-          stroke="#1e293b"
-          strokeWidth="3"
-        />
-        <path
-          id="upperRibbonPath"
-          d="M 120 382 C 190 435, 310 435, 380 382"
-          fill="none"
-        />
-        <text fill="#0a192f" fontSize="38" fontWeight="900" letterSpacing="4" fontFamily="sans-serif">
-          <textPath href="#upperRibbonPath" startOffset="50%" textAnchor="middle">
-            IMIGRASI
-          </textPath>
-        </text>
-      </g>
-    </svg>
+    <img 
+      src="/logo-imigrasi.png" 
+      alt="Logo Imigrasi" 
+      className={`${className} object-contain`} 
+    />
   );
 }
-
 export default function App() {
   const [viewMode, setViewMode] = useState('form'); // 'form' | 'admin'
   const [adminTab, setAdminTab] = useState('list'); // 'list' | 'event' | 'drive'
