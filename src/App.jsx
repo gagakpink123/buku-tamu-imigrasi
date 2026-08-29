@@ -575,132 +575,246 @@ export default function App() {
           </div>
         )}
 
+        {/* ======================================================== */}
         {/* TAMPILAN 2: HALAMAN ADMIN */}
+        {/* ======================================================== */}
         {viewMode === 'admin' && (
           <div className="space-y-5">
-            <div className="bg-white/90 border border-white/60 p-2 rounded-2xl shadow-sm flex items-center justify-between gap-2">
-              <div className="flex bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto">
-                <button onClick={() => setAdminTab('list')} className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold ${adminTab === 'list' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600'}`}>Daftar Pengunjung</button>
-                <button onClick={() => setAdminTab('event')} className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold ${adminTab === 'event' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600'}`}>Info Pameran</button>
+            {/* Tab Navigasi Admin */}
+            <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto">
+                <button
+                  onClick={() => setAdminTab('list')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    adminTab === 'list' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Daftar Pengunjung ({guestList.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setAdminTab('event')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    adminTab === 'event' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Info Pameran</span>
+                </button>
+
+                <button
+                  onClick={() => setAdminTab('drive')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    adminTab === 'drive' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600'
+                  }`}
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>Google Drive</span>
+                </button>
               </div>
             </div>
 
-            {adminTab === 'event' && (
-              <div className="bg-white/90 border border-white/60 rounded-3xl p-6 shadow-sm space-y-5">
-                <div>
-                  <h2 className="text-base font-bold text-[#1C1C1E]">Pengaturan Nama Kegiatan & Lokasi</h2>
-                  <p className="text-xs text-slate-500">Ubah teks nama kegiatan pameran dan lokasi</p>
+            {/* 1. TAB DAFTAR PENGUNJUNG */}
+            {adminTab === 'list' && (
+              <div className="space-y-4">
+                <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                  <div>
+                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
+                      <List className="w-4 h-4 text-[#007AFF]" />
+                      Rekapitulasi Pengunjung ({guestList.length})
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium">Data kehadiran tercatat pada sistem</p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-56">
+                      <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari nama / alamat..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white focus:border-[#007AFF] outline-none font-medium"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const csvContent =
+                          'data:text/csv;charset=utf-8,' +
+                          ['Hari / Tanggal,Jam Kunjungan,Nama Lengkap,Alamat / Instansi,WhatsApp,Keperluan'].join(',') +
+                          '\n' +
+                          guestList
+                            .map(
+                              (g) =>
+                                `"${g.hariTanggal}","${g.jamKunjungan}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}"`
+                            )
+                            .join('\n');
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement('a');
+                        link.setAttribute('href', encodedUri);
+                        link.setAttribute(
+                          'download',
+                          `Buku_Tamu_Imigrasi_Kediri_${new Date().toISOString().slice(0, 10)}.csv`
+                        );
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                      disabled={guestList.length === 0}
+                      className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      CSV
+                    </button>
+                  </div>
                 </div>
+
+                {filteredGuests.length === 0 ? (
+                  <div className="bg-white/85 border border-white/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-2">
+                    <User className="w-8 h-8 text-slate-400" />
+                    <h3 className="text-sm font-semibold text-slate-800">Belum Ada Tamu Tercatat</h3>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {filteredGuests.map((guest) => (
+                      <div
+                        key={guest.id}
+                        className="bg-white/90 border border-white/80 rounded-2xl p-4 flex gap-3.5 items-center hover:shadow-sm transition-all"
+                      >
+                        <div
+                          onClick={() => setPreviewItem(guest)}
+                          className="w-16 h-16 rounded-2xl overflow-hidden bg-[#F2F2F7] border border-slate-200 flex-shrink-0 cursor-pointer relative"
+                        >
+                          <img src={guest.photo} alt={guest.nama} className="w-full h-full object-cover" />
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-bold text-[#1C1C1E] truncate">{guest.nama}</h4>
+                            <span className="text-[11px] text-[#007AFF] font-mono font-semibold">
+                              {guest.jamKunjungan}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 truncate font-medium">
+                            {guest.alamat} • {guest.whatsapp}
+                          </p>
+                          <div className="pt-1 flex items-center justify-between gap-2">
+                            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#F2F2F7] text-slate-700 font-medium truncate">
+                              {guest.layanan}
+                            </span>
+                            <button
+                              onClick={() => setPreviewItem(guest)}
+                              className="text-[11px] text-[#007AFF] hover:underline flex items-center font-semibold"
+                            >
+                              Detail <ChevronRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 2. TAB INFO PAMERAN */}
+            {adminTab === 'event' && (
+              <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
+                <div>
+                  <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
+                    <Edit3 className="w-4 h-4 text-[#007AFF]" />
+                    Pengaturan Nama Kegiatan & Lokasi Pameran
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Ubah teks nama kegiatan pameran dan lokasi pada header secara permanen
+                  </p>
+                </div>
+
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran (Kapital)</label>
-                    <input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] text-xs font-bold uppercase outline-none" />
+                    <label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran (Huruf Kapital)</label>
+                    <input
+                      type="text"
+                      required
+                      value={tempEventConfig.namaKegiatan}
+                      onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white focus:border-[#007AFF] outline-none"
+                    />
                   </div>
+
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan di Bawah</label>
-                    <input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] text-xs font-medium outline-none" />
+                    <label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan di Bawah Nama Kegiatan</label>
+                    <input
+                      type="text"
+                      required
+                      value={tempEventConfig.lokasi}
+                      onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none"
+                    />
                   </div>
-                  <button type="submit" className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] text-white rounded-2xl font-bold text-xs shadow-sm">
-                    <Save className="w-4 h-4" /><span>Simpan Perubahan Permanen</span>
+
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-xs shadow-sm transition"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Simpan Perubahan Permanen</span>
                   </button>
                 </form>
               </div>
             )}
-            
-            {/* Bagian List & Drive disederhanakan untuk contoh, tetap ada di kode Anda */}
-          </div>
-        )}
-      </div>
 
-      <footer className="mt-auto bg-[#002D59] text-white py-6 px-4 text-center border-t border-blue-900/40">
-        <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
-          <p className="font-black tracking-wider text-amber-300">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
-          <p className="text-blue-100/90 font-medium">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kab. Kediri, Jawa Timur 64151</p>
-          <p className="text-[11px] text-blue-300 font-mono pt-1">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
-        </div>
-      </footer>
+            {/* 3. TAB GOOGLE DRIVE */}
+            {adminTab === 'drive' && (
+              <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 space-y-5 shadow-sm">
+                <div>
+                  <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
+                    <FolderOpen className="w-4 h-4 text-[#007AFF]" />
+                    Integrasi Google Drive & Spreadsheet
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Masukkan URL Web App dari Google Apps Script agar setiap tamu otomatis masuk ke Spreadsheet dan Google Drive.
+                  </p>
+                </div>
 
-      {/* MODAL ADMIN LOGIN */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)]">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3>
-              <p className="text-xs text-slate-500 font-medium">Masukkan akun untuk membuka panel admin</p>
-            </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      value={scriptUrl}
+                      onChange={(e) => setScriptUrl(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 text-xs font-mono focus:bg-white focus:border-[#007AFF] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => showToast('URL Webhook Google Drive disimpan!', 'success')}
+                      className="px-5 py-3 bg-[#007AFF] text-white font-semibold rounded-2xl text-xs"
+                    >
+                      Simpan URL
+                    </button>
+                  </div>
+                </div>
 
-            {loginError && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-medium">
-                {loginError}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script:</span>
+                    <button
+                      onClick={() => handleCopyCode(gasSampleCode)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2F2F7] text-xs text-[#007AFF] font-semibold"
+                    >
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCode ? 'Tersalin' : 'Salin Kode'}
+                    </button>
+                  </div>
+                  <pre className="p-4 bg-[#1C1C1E] text-emerald-400 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-60 leading-relaxed">
+                    {gasSampleCode}
+                  </pre>
+                </div>
               </div>
             )}
-
-            <form onSubmit={handleAdminLogin} className="space-y-2.5">
-              <div>
-                <input
-                  type="text"
-                  required
-                  placeholder="Username"
-                  value={loginForm.username}
-                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none"
-                />
-              </div>
-              <div>
-                <input
-                  type="password"
-                  required
-                  placeholder="Password"
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowLoginModal(false)}
-                  className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold rounded-xl text-xs transition shadow-sm"
-                >
-                  Masuk
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
-
-      {/* MODAL SUCCESS */}
-      {showSuccessModal && lastSubmittedGuest && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.15)] space-y-4">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-            </div>
-            <button
-              onClick={() => setShowSuccessModal(false)}
-              className="w-full py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-bold transition shadow-sm"
-            >
-              Pengunjung Berikutnya
-            </button>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
-}
+        )}
