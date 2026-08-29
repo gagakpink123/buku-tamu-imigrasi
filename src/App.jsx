@@ -575,7 +575,11 @@ export default function App() {
           </div>
         )}
 
+<<<<<<< HEAD
         {/* ======================================================== */}
+=======
+       {/* ======================================================== */}
+>>>>>>> 53d78c8 (Finalisasi lengkap aplikasi buku tamu imigrasi)
         {/* TAMPILAN 2: HALAMAN ADMIN */}
         {/* ======================================================== */}
         {viewMode === 'admin' && (
@@ -765,6 +769,21 @@ export default function App() {
                 </form>
               </div>
             )}
+<<<<<<< HEAD
+
+            {/* 3. TAB GOOGLE DRIVE */}
+            {adminTab === 'drive' && (
+              <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 space-y-5 shadow-sm">
+                <div>
+                  <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
+                    <FolderOpen className="w-4 h-4 text-[#007AFF]" />
+                    Integrasi Google Drive & Spreadsheet
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Masukkan URL Web App dari Google Apps Script agar setiap tamu otomatis masuk ke Spreadsheet dan Google Drive.
+                  </p>
+                </div>
+=======
 
             {/* 3. TAB GOOGLE DRIVE */}
             {adminTab === 'drive' && (
@@ -818,3 +837,151 @@ export default function App() {
             )}
           </div>
         )}
+
+{/* FOOTER RESMI INSTANSI */}
+      <footer className="mt-auto bg-[#002D59] text-white py-6 px-4 text-center border-t border-blue-900/40">
+        <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
+          <p className="font-black tracking-wider text-amber-300">
+            KANTOR IMIGRASI KELAS II TPI KEDIRI
+          </p>
+          <p className="text-blue-100/90 font-medium leading-relaxed">
+            Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151
+          </p>
+          <p className="text-[11px] text-blue-300 font-mono pt-1">
+            &copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved
+          </p>
+        </div>
+      </footer>
+>>>>>>> 53d78c8 (Finalisasi lengkap aplikasi buku tamu imigrasi)
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      value={scriptUrl}
+                      onChange={(e) => setScriptUrl(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 text-xs font-mono focus:bg-white focus:border-[#007AFF] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => showToast('URL Webhook Google Drive disimpan!', 'success')}
+                      className="px-5 py-3 bg-[#007AFF] text-white font-semibold rounded-2xl text-xs"
+                    >
+                      Simpan URL
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script:</span>
+                    <button
+                      onClick={() => handleCopyCode(gasSampleCode)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2F2F7] text-xs text-[#007AFF] font-semibold"
+                    >
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCode ? 'Tersalin' : 'Salin Kode'}
+                    </button>
+                  </div>
+                  <pre className="p-4 bg-[#1C1C1E] text-emerald-400 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-60 leading-relaxed">
+                    {gasSampleCode}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
+<<<<<<< HEAD
+        )}
+=======
+        </div>
+      )}
+
+      {/* MODAL SUCCESS */}
+      {showSuccessModal && lastSubmittedGuest && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.15)] space-y-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
+              <p className="text-xs text-slate-500 font-medium mt-1">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
+            </div>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-bold transition shadow-sm"
+            >
+              Pengunjung Berikutnya
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PREVIEW DETAIL */}
+      {previewItem && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-[#1C1C1E]">Detail Kartu Pengunjung</h3>
+              <button
+                onClick={() => setPreviewItem(null)}
+                className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] text-slate-400 font-semibold uppercase">Foto</label>
+                <div className="mt-1 aspect-video bg-[#F2F2F7] rounded-2xl overflow-hidden border border-slate-200">
+                  <img src={previewItem.photo} alt="Foto" className="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-400 font-semibold uppercase">Tanda Tangan</label>
+                <div className="mt-1 aspect-video bg-white rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner">
+                  <img src={previewItem.signature} alt="TTD" className="max-h-full max-w-full object-contain" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px] font-semibold uppercase">Waktu Kunjungan:</span>
+                <span className="font-semibold text-[#007AFF]">{previewItem.hariTanggal} • {previewItem.jamKunjungan}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] font-semibold uppercase">Nama:</span>
+                <span className="font-bold text-[#1C1C1E] text-sm">{previewItem.nama}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] font-semibold uppercase">Alamat / Instansi:</span>
+                <span className="text-slate-700 font-medium">{previewItem.alamat}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] font-semibold uppercase">Nomor WhatsApp:</span>
+                <span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] font-semibold uppercase">Keperluan:</span>
+                <span className="text-slate-700 font-medium">{previewItem.layanan}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setPreviewItem(null)}
+              className="w-full py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-800 rounded-2xl text-xs font-semibold transition"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+>>>>>>> 53d78c8 (Finalisasi lengkap aplikasi buku tamu imigrasi)
