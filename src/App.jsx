@@ -7,13 +7,9 @@ import {
   Edit3, Save, ArrowLeft, Trash
 } from 'lucide-react';
 
-// 1. IMPORT FIREBASE (Sistem Database Real-time)
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
-// ==========================================
-// KONFIGURASI FIREBASE
-// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyDBpslV-mau0ENE3JllX5r4nDB5_7PGXek",
   authDomain: "buku-tamu-5bfdd.firebaseapp.com",
@@ -51,7 +47,6 @@ export default function App() {
   const [adminTab, setAdminTab] = useState('list'); 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Pengaturan Teks Header (Dilengkapi localStorage fallback)
   const [eventConfig, setEventConfig] = useState(() => {
     const saved = localStorage.getItem('imigrasi_event_config');
     return saved ? JSON.parse(saved) : {
@@ -61,17 +56,14 @@ export default function App() {
   });
   const [tempEventConfig, setTempEventConfig] = useState({ ...eventConfig });
 
-  // Admin Auth
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
-  // Realtime Clock & IP Address
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userIpAddress, setUserIpAddress] = useState('Memuat IP...');
 
-  // State Formulir
   const [formData, setFormData] = useState({
     nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: ''
   });
@@ -82,13 +74,15 @@ export default function App() {
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
 
-  // URL App Script disimpan di localStorage agar permanen
-  const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem('imigrasi_script_url') || '');
+  const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzzv3XxDuG0ksPwTuVGkot6-7rkWRDlh22Nm_g3GYSdnwMvhb35o9E_BAcxammvC5pv/exec';
+  const [scriptUrl, setScriptUrl] = useState(() => {
+    return localStorage.getItem('imigrasi_script_url') || DEFAULT_SCRIPT_URL;
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSubmittedGuest, setLastSubmittedGuest] = useState(null);
   
-  // DAFTAR TAMU (Disimpan di localStorage agar tidak hilang saat refresh)
   const [guestList, setGuestList] = useState(() => {
     const saved = localStorage.getItem('imigrasi_guest_list');
     return saved ? JSON.parse(saved) : [];
@@ -103,7 +97,6 @@ export default function App() {
   const signatureCanvasRef = useRef(null);
   const isDrawingRef = useRef(false);
 
-  // Toast Notification Helper
   const showToast = (msg, type = 'success') => {
     setToastMessage({ msg, type });
     setTimeout(() => setToastMessage(null), 3500);
@@ -136,7 +129,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Firebase Realtime Listener untuk Info Pameran & URL Script (Otomatis Sync ke semua HP Pengunjung)
   useEffect(() => {
     if (db) {
       const unsubPameran = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
@@ -217,7 +209,6 @@ export default function App() {
     }
   };
 
-  // Menyimpan URL Script ke Firebase Cloud agar semua HP Pengunjung otomatis tahu URL-nya
   const handleSaveScriptUrl = async () => {
     if (!scriptUrl.trim()) {
       showToast('URL Google Apps Script tidak boleh kosong', 'error');
@@ -227,12 +218,12 @@ export default function App() {
     if (db) {
       try {
         await setDoc(doc(db, "pengaturan", "integrasi"), { scriptUrl: scriptUrl }, { merge: true });
-        showToast('URL Google Drive berhasil disinkronisasi ke Cloud (Semua HP tamu siap)!', 'success');
+        showToast('URL Google Drive berhasil disimpan dan disinkronisasi!', 'success');
       } catch (err) {
-        showToast('URL disimpan lokal (Gagal ke Cloud Firebase).', 'info');
+        showToast('URL disimpan secara lokal.', 'info');
       }
     } else {
-      showToast('URL Webhook Google Drive disimpan secara lokal.', 'success');
+      showToast('URL disimpan secara lokal.', 'success');
     }
   };
 
@@ -463,10 +454,8 @@ export default function App() {
   };
 
   const handleClearGuestList = () => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus seluruh riwayat data tamu lokal di perangkat ini?")) {
-      setGuestList([]);
-      showToast('Seluruh riwayat lokal dibersihkan.', 'success');
-    }
+    setGuestList([]);
+    showToast('Seluruh riwayat lokal dibersihkan.', 'success');
   };
 
   const filteredGuests = guestList.filter(
@@ -479,7 +468,7 @@ export default function App() {
 
   const handleRefreshSync = async () => {
     if (!scriptUrl) {
-      showToast('Simpan URL Google Apps Script di tab Google Drive terlebih dahulu.', 'error');
+      showToast('URL Google Apps Script belum tersedia.', 'error');
       return;
     }
     setIsSyncing(true);
@@ -578,7 +567,6 @@ function doPost(e) {
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased selection:bg-[#007AFF]/20 selection:text-[#007AFF]">
       
-      {/* Toast Notification */}
       {toastMessage && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />}
@@ -586,7 +574,6 @@ function doPost(e) {
         </div>
       )}
 
-      {/* Main Container */}
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
         {/* HEADER SECTION */}
@@ -632,7 +619,7 @@ function doPost(e) {
           </div>
         </div>
 
-        {/* TAMPILAN 1: FORMULIR UTAMA */}
+        {/* FORMULIR UTAMA */}
         {viewMode === 'form' && (
           <div className="space-y-5 animate-in fade-in duration-300">
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] text-center space-y-1.5">
@@ -735,12 +722,9 @@ function doPost(e) {
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* TAMPILAN 2: HALAMAN ADMIN */}
-        {/* ======================================================== */}
+        {/* HALAMAN ADMIN */}
         {viewMode === 'admin' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            {/* Tab Navigasi Admin */}
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600 hover:bg-black/5'}`}>
@@ -755,7 +739,7 @@ function doPost(e) {
               </div>
             </div>
 
-            {/* 1. TAB DAFTAR PENGUNJUNG */}
+            {/* TAB 1: DAFTAR PENGUNJUNG */}
             {adminTab === 'list' && (
               <div className="space-y-4">
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
@@ -810,7 +794,6 @@ function doPost(e) {
                       onClick={handleClearGuestList}
                       disabled={guestList.length === 0}
                       className="px-4 py-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                      title="Bersihkan daftar dari perangkat ini"
                     >
                       <Trash className="w-3.5 h-3.5" /> Bersihkan
                     </button>
@@ -821,7 +804,7 @@ function doPost(e) {
                   <div className="bg-white/85 border border-white/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-2">
                     <User className="w-8 h-8 text-slate-400" />
                     <h3 className="text-sm font-semibold text-slate-800">Belum Ada Tamu Tercatat</h3>
-                    <p className="text-xs text-slate-500">Klik tombol <strong>Sync Data</strong> di atas untuk menarik data terbaru dari Google Spreadsheet.</p>
+                    <p className="text-xs text-slate-500">Klik tombol <strong>Sync Data</strong> di atas untuk menarik data dari Google Spreadsheet.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -851,7 +834,7 @@ function doPost(e) {
               </div>
             )}
 
-            {/* 2. TAB INFO PAMERAN */}
+            {/* TAB 2: INFO PAMERAN */}
             {adminTab === 'event' && (
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
                 <div>
@@ -872,12 +855,12 @@ function doPost(e) {
               </div>
             )}
 
-            {/* 3. TAB GOOGLE DRIVE */}
+            {/* TAB 3: GOOGLE DRIVE */}
             {adminTab === 'drive' && (
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 space-y-5 shadow-sm">
                 <div>
                   <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><FolderOpen className="w-4 h-4 text-[#007AFF]" />Integrasi Google Drive & Spreadsheet</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">Masukkan URL Web App dari Google Apps Script. Saat Anda klik Simpan URL, URL ini akan otomatis tersinkronisasi ke Firebase Cloud sehingga seluruh HP/Tablet pengunjung langsung siap mengirim data ke spreadsheet utama!</p>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">URL Google Apps Script sudah di-set secara permanen di aplikasi. Anda dapat mengubahnya di bawah jika menggunakan deployment baru.</p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
@@ -888,7 +871,7 @@ function doPost(e) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script Lengkap (`doGet` & `doPost`):</span>
+                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script (`doGet` & `doPost`):</span>
                     <button onClick={() => handleCopyCode(gasSampleCode)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2F2F7] text-xs text-[#007AFF] font-semibold hover:bg-[#E5E5EA] transition">
                       {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedCode ? 'Tersalin' : 'Salin Kode'}
@@ -905,7 +888,7 @@ function doPost(e) {
 
       </div>
 
-      {/* FOOTER RESMI INSTANSI */}
+      {/* FOOTER */}
       <footer className="mt-auto bg-[#002D59] text-white py-6 px-4 text-center border-t border-blue-900/40">
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
           <p className="font-black tracking-wider text-amber-300">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
@@ -914,10 +897,10 @@ function doPost(e) {
         </div>
       </footer>
 
-      {/* MODAL ADMIN LOGIN */}
+      {/* MODAL LOGIN ADMIN */}
       {showLoginModal && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)]">
             <div className="text-center space-y-1">
               <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]"><ShieldCheck className="w-6 h-6" /></div>
               <h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3>
