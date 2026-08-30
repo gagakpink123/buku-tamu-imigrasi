@@ -93,7 +93,7 @@ export default function App() {
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
 
-  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
+  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU ⚠️
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec")
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -278,6 +278,66 @@ export default function App() {
     } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
   };
 
+  // --- FUNGSI UNDUH LAPORAN EXCEL ---
+  const handleDownloadExcel = () => {
+    const tableHTML = `
+      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+      <head>
+        <meta charset="utf-8">
+        <style>
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid black; padding: 5px; font-family: Arial, sans-serif; font-size: 11pt; vertical-align: middle; }
+          .title { text-align: center; font-size: 16pt; font-weight: bold; border: none; }
+          .subtitle { text-align: center; font-size: 14pt; font-weight: bold; border: none; }
+          .header { background-color: #003B73; color: white; font-weight: bold; text-align: center; }
+          .center { text-align: center; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td colspan="10" class="title">DAFTAR PENGUNJUNG</td></tr>
+          <tr><td colspan="10" class="subtitle">STAND KANTOR IMIGRASI KEDIRI</td></tr>
+          <tr><td colspan="10" style="border:none;"></td></tr>
+          <tr>
+            <th class="header">Nomor</th>
+            <th class="header">Hari/Tanggal</th>
+            <th class="header">Nama</th>
+            <th class="header">Alamat</th>
+            <th class="header">Nomor HP/WA</th>
+            <th class="header">Keperluan</th>
+            <th class="header">Kesan/Pesan</th>
+            <th class="header">Titik Koordinat</th>
+            <th class="header">Foto</th>
+            <th class="header">Tanda Tangan</th>
+          </tr>
+          ${guestList.map((g, idx) => `
+            <tr>
+              <td class="center">${idx + 1}</td>
+              <td>${g.hariTanggal}</td>
+              <td>${g.nama}</td>
+              <td>${g.alamat}</td>
+              <td style="mso-number-format:'\\@'">${g.whatsapp}</td>
+              <td>${g.layanan}</td>
+              <td>${g.kesan || '-'}</td>
+              <td>${g.gps && g.gps !== 'Meminta akses lokasi...' ? `<a href="https://maps.google.com/?q=${g.gps}">${g.gps}</a>` : '-'}</td>
+              <td class="center">${g.photo && g.photo.startsWith('http') ? `<a href="${g.photo}">Lihat Foto</a>` : 'Lokal'}</td>
+              <td class="center">${g.signature && g.signature.startsWith('http') ? `<a href="${g.signature}">Lihat TTD</a>` : 'Lokal'}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([tableHTML], { type: 'application/vnd.ms-excel' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Laporan_Pengunjung_${new Date().toISOString().slice(0, 10)}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const filteredGuests = guestList.filter((g) =>
     g.nama.toLowerCase().includes(searchQuery.toLowerCase()) || g.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.whatsapp.includes(searchQuery) || g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
@@ -361,14 +421,17 @@ export default function App() {
                 <div className="border-b border-slate-100 pb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[#007AFF]" /> Informasi Pengunjung</h3>
                 </div>
+                
+                {/* AUTO KAPITAL: NAMA & ALAMAT */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nama Lengkap <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Alamat / Instansi <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                 </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nomor WhatsApp <span className="text-rose-500">*</span></label>
                   <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
@@ -391,8 +454,10 @@ export default function App() {
                     <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-blue-50/50 border border-blue-200 text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                   </div>
                 )}
+
+                {/* LABEL KESAN / PESAN (OPSIONAL) */}
                 <div className="space-y-1.5 pt-2">
-                  <label className="text-xs font-semibold text-slate-700">Kesan/Kritik/Saran/Masukan <span className="text-slate-400 font-normal">(Opsional)</span></label>
+                  <label className="text-xs font-semibold text-slate-700">Kesan/Pesan <span className="text-slate-400 font-normal">(Opsional)</span></label>
                   <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition resize-none h-20" />
                 </div>
               </div>
@@ -475,15 +540,11 @@ export default function App() {
                       <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white focus:border-[#007AFF] outline-none font-medium transition" />
                     </div>
                     <button onClick={handleRefreshSync} disabled={isSyncing} className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
-                    <button onClick={() => {
-                        const csvContent = 'data:text/csv;charset=utf-8,' +
-                          ['ID,Tanggal,Jam,Nama Pameran,Lokasi,IP,GPS,Nama,Alamat,WhatsApp,Keperluan,Kesan/Pesan'].join(',') + '\n' +
-                          guestList.map(g => `"${g.id}","${g.hariTanggal}","${g.jamKunjungan}","${g.namaKegiatan}","${g.lokasi}","${g.ipAddress}","${g.gps}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}","${g.kesan || '-'}"`).join('\n');
-                        const encodedUri = encodeURI(csvContent); const link = document.createElement('a'); link.setAttribute('href', encodedUri);
-                        link.setAttribute('download', `Buku_Tamu_Imigrasi_${new Date().toISOString().slice(0, 10)}.csv`);
-                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                      }} disabled={guestList.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    ><Download className="w-3.5 h-3.5" /> CSV</button>
+                    
+                    {/* TOMBOL LAPORAN EXCEL */}
+                    <button onClick={handleDownloadExcel} disabled={guestList.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                      <Download className="w-3.5 h-3.5" /> Laporan
+                    </button>
                   </div>
                 </div>
 
