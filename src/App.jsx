@@ -32,7 +32,6 @@ try {
   console.warn("Firebase berjalan dalam mode lokal (fallback).");
 }
 
-// --- HELPER UNTUK MENAMPILKAN GAMBAR (Base64 / Google Drive Link) ---
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
   if (imageData.startsWith('data:')) return imageData;
@@ -53,7 +52,7 @@ function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
     <img 
       src="/logo-imigrasi.png" 
       alt="Logo Imigrasi" 
-      className={`${className} object-contain`} 
+      className={`${className} object-contain filter drop-shadow-md`} 
       onError={(e) => {
         e.target.onerror = null; 
         e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg/1024px-Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg.png";
@@ -84,7 +83,6 @@ export default function App() {
   const [userIpAddress, setUserIpAddress] = useState('Memuat IP...');
   const [gpsLocation, setGpsLocation] = useState('Meminta akses lokasi...');
 
-  // State Formulir ditambah 'kesan'
   const [formData, setFormData] = useState({
     nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: ''
   });
@@ -96,7 +94,7 @@ export default function App() {
   const [cameraError, setCameraError] = useState('');
 
   // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec");
+  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec")
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -118,7 +116,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('imigrasi_guest_list', JSON.stringify(guestList)); }, [guestList]);
 
-  // Efek: Ambil IP Address
   useEffect(() => {
     fetch('https://api.ipify.org?format=json')
       .then(res => res.json())
@@ -126,17 +123,12 @@ export default function App() {
       .catch(() => setUserIpAddress('IP Tidak Diketahui'));
   }, []);
 
-  // Efek: Ambil Koordinat GPS (Hanya saat di halaman form)
   useEffect(() => {
     if (viewMode === 'form') {
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setGpsLocation(`${position.coords.latitude}, ${position.coords.longitude}`);
-          },
-          (error) => {
-            setGpsLocation('Akses lokasi ditolak/gagal');
-          },
+          (position) => { setGpsLocation(`${position.coords.latitude}, ${position.coords.longitude}`); },
+          (error) => { setGpsLocation('Akses lokasi ditolak/gagal'); },
           { enableHighAccuracy: true }
         );
       } else {
@@ -155,8 +147,7 @@ export default function App() {
       const unsubPameran = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setEventConfig(data);
-          setTempEventConfig(data);
+          setEventConfig(data); setTempEventConfig(data);
           localStorage.setItem('imigrasi_event_config', JSON.stringify(data));
         }
       });
@@ -165,88 +156,53 @@ export default function App() {
   }, []);
 
   const showToast = (msg, type = 'info') => {
-    setToastMessage({ msg, type });
-    setTimeout(() => setToastMessage(null), 3500);
+    setToastMessage({ msg, type }); setTimeout(() => setToastMessage(null), 3500);
   };
 
   const handleOpenAdmin = () => {
     stopCamera();
-    if (!isAdminLoggedIn) {
-      setLoginError('');
-      setShowLoginModal(true);
-    } else {
-      setViewMode('admin');
-      handleRefreshSync(); 
-    }
+    if (!isAdminLoggedIn) { setLoginError(''); setShowLoginModal(true); } 
+    else { setViewMode('admin'); handleRefreshSync(); }
   };
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
     if (loginForm.username === 'admin' && loginForm.password === '1mk3d1r1') {
-      setIsAdminLoggedIn(true);
-      setShowLoginModal(false);
-      setLoginForm({ username: '', password: '' });
-      setLoginError('');
-      setViewMode('admin');
-      showToast('Berhasil masuk ke Panel Admin!', 'success');
-      handleRefreshSync(); 
-    } else {
-      setLoginError('Username atau password admin salah!');
-    }
+      setIsAdminLoggedIn(true); setShowLoginModal(false); setLoginForm({ username: '', password: '' }); setLoginError('');
+      setViewMode('admin'); showToast('Berhasil masuk ke Panel Admin!', 'success'); handleRefreshSync(); 
+    } else { setLoginError('Username atau password admin salah!'); }
   };
 
-  const handleAdminLogout = () => {
-    setIsAdminLoggedIn(false);
-    setViewMode('form');
-    showToast('Keluar dari Panel Admin', 'info');
-  };
+  const handleAdminLogout = () => { setIsAdminLoggedIn(false); setViewMode('form'); showToast('Keluar dari Panel Admin', 'info'); };
 
   const handleSaveEventConfig = async (e) => {
     e.preventDefault();
-    if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim()) {
-      showToast('Nama kegiatan dan lokasi tidak boleh kosong', 'error'); return;
-    }
-    setEventConfig({ ...tempEventConfig });
-    localStorage.setItem('imigrasi_event_config', JSON.stringify(tempEventConfig));
-    if (db) {
-      try {
-        await setDoc(doc(db, "pengaturan", "infoPameran"), tempEventConfig);
-        showToast('Info pameran berhasil disinkronisasi ke Cloud!', 'success');
-      } catch (err) { showToast('Info disimpan lokal.', 'info'); }
-    }
+    if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim()) { showToast('Nama kegiatan dan lokasi tidak boleh kosong', 'error'); return; }
+    setEventConfig({ ...tempEventConfig }); localStorage.setItem('imigrasi_event_config', JSON.stringify(tempEventConfig));
+    if (db) { try { await setDoc(doc(db, "pengaturan", "infoPameran"), tempEventConfig); showToast('Info disinkronisasi ke Cloud!', 'success'); } catch (err) { showToast('Info disimpan lokal.', 'info'); } }
   };
 
-  // --- MANAJEMEN KAMERA & TANDA TANGAN (Diringkas agar hemat tempat) ---
   const startCamera = async () => {
     setCameraError(''); setIsCameraActive(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (err) { setCameraError('Izin akses kamera ditolak.'); }
+    try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false }); if (videoRef.current) videoRef.current.srcObject = stream; } 
+    catch (err) { setCameraError('Izin akses kamera ditolak.'); }
   };
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
+    if (videoRef.current && videoRef.current.srcObject) { videoRef.current.srcObject.getTracks().forEach(t => t.stop()); videoRef.current.srcObject = null; }
     setIsCameraActive(false);
   };
   useEffect(() => { return () => stopCamera(); }, [viewMode]);
   const switchCamera = () => { stopCamera(); setCameraFacing(p => p === 'user' ? 'environment' : 'user'); setTimeout(() => startCamera(), 300); };
   const capturePhoto = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current; const canvas = canvasPhotoRef.current || document.createElement('canvas');
-    const scale = 480 / video.videoWidth; canvas.width = 480; canvas.height = video.videoHeight * scale;
-    const ctx = canvas.getContext('2d');
-    if (cameraFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (!videoRef.current) return; const video = videoRef.current; const canvas = canvasPhotoRef.current || document.createElement('canvas');
+    const scale = 480 / video.videoWidth; canvas.width = 480; canvas.height = video.videoHeight * scale; const ctx = canvas.getContext('2d');
+    if (cameraFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); } ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     setPhotoData(canvas.toDataURL('image/jpeg', 0.65)); stopCamera(); showToast('Foto ditangkap!', 'success');
   };
   const handleFileUploadPhoto = (e) => {
     const file = e.target.files[0];
-    if (file && file.size < 5000000) {
-      const reader = new FileReader(); reader.onload = (ev) => { setPhotoData(ev.target.result); showToast('Foto dimuat!', 'success'); }; reader.readAsDataURL(file);
-    } else { showToast('Ukuran foto terlalu besar', 'error'); }
+    if (file && file.size < 5000000) { const reader = new FileReader(); reader.onload = (ev) => { setPhotoData(ev.target.result); showToast('Foto dimuat!', 'success'); }; reader.readAsDataURL(file); } 
+    else { showToast('Ukuran foto terlalu besar', 'error'); }
   };
   const initSignaturePad = () => {
     const canvas = signatureCanvasRef.current; if (!canvas) return;
@@ -255,21 +211,14 @@ export default function App() {
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   };
   useEffect(() => {
-    if (viewMode === 'form' && !signatureData) {
-      initSignaturePad(); const handleResize = () => { if(!signatureData) initSignaturePad(); };
-      window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize);
-    }
+    if (viewMode === 'form' && !signatureData) { initSignaturePad(); const handleResize = () => { if(!signatureData) initSignaturePad(); }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }
   }, [viewMode, signatureData]);
-  const getCanvasCoords = (e, c) => {
-    const rect = c.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
+  const getCanvasCoords = (e, c) => { const rect = c.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; };
   const startDrawing = (e) => { const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.beginPath(); ctx.moveTo(x, y); isDrawingRef.current = true; };
   const draw = (e) => { if (!isDrawingRef.current) return; e.preventDefault(); const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.lineTo(x, y); ctx.stroke(); };
   const stopDrawing = () => { if (isDrawingRef.current) { isDrawingRef.current = false; const c = signatureCanvasRef.current; if (c) setSignatureData(c.toDataURL('image/png')); } };
   const clearSignature = () => { const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); setSignatureData(null); };
 
-  // --- SUBMIT UTAMA ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.nama.trim()) { showToast('Masukkan Nama Lengkap', 'error'); return; }
@@ -280,7 +229,6 @@ export default function App() {
     if (!signatureData) { showToast('Harap bubuhkan tanda tangan (Wajib)', 'error'); return; }
 
     setIsSubmitting(true);
-    
     const now = new Date();
     const formattedDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
@@ -288,51 +236,27 @@ export default function App() {
     const uniqueId = 'KDR-' + Date.now().toString().slice(-6);
 
     const newGuest = {
-      id: uniqueId,
-      hariTanggal: formattedDate,
-      jamKunjungan: formattedTime,
-      namaKegiatan: eventConfig.namaKegiatan,
-      lokasi: eventConfig.lokasi,
-      ipAddress: userIpAddress,
-      gps: gpsLocation, // Menyimpan titik kordinat lokal
-      ...formData,
-      kesan: formData.kesan || '-', // Simpan kesan lokal
-      layanan: finalKeperluan,
-      photo: photoData,
-      signature: signatureData,
-      driveStatus: 'Mengunggah ke Cloud...'
+      id: uniqueId, hariTanggal: formattedDate, jamKunjungan: formattedTime,
+      namaKegiatan: eventConfig.namaKegiatan, lokasi: eventConfig.lokasi,
+      ipAddress: userIpAddress, gps: gpsLocation, ...formData,
+      kesan: formData.kesan || '-', layanan: finalKeperluan,
+      photo: photoData, signature: signatureData, driveStatus: 'Mengunggah ke Cloud...'
     };
 
     if (scriptUrl) {
       try {
         const payload = {
-          id: uniqueId,
-          tanggal: formattedDate,
-          jam: formattedTime,
-          eventName: eventConfig.namaKegiatan,
-          eventLocation: eventConfig.lokasi,
-          nama: formData.nama,
-          alamat: formData.alamat,
-          whatsapp: formData.whatsapp,
-          keperluan: finalKeperluan,
-          kesan: formData.kesan || '-', // Mengirim kesan ke Google Sheet
-          ipAddress: userIpAddress,
-          gps: gpsLocation, // Mengirim GPS ke Google Sheet
-          photoBase64: photoData,
-          signatureBase64: signatureData
+          id: uniqueId, tanggal: formattedDate, jam: formattedTime, eventName: eventConfig.namaKegiatan, eventLocation: eventConfig.lokasi,
+          nama: formData.nama, alamat: formData.alamat, whatsapp: formData.whatsapp, keperluan: finalKeperluan, kesan: formData.kesan || '-',
+          ipAddress: userIpAddress, gps: gpsLocation, photoBase64: photoData, signatureBase64: signatureData
         };
         const response = await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
         const resJson = await response.json();
-        if (resJson.status === 'success') newGuest.driveStatus = 'Tersimpan di Google Server';
-        else newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
+        if (resJson.status === 'success') newGuest.driveStatus = 'Tersimpan di Google Server'; else newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
       } catch (err) { newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)'; }
     }
 
-    setGuestList((prev) => [newGuest, ...prev]);
-    setLastSubmittedGuest(newGuest);
-    setShowSuccessModal(true);
-    setIsSubmitting(false);
-
+    setGuestList((prev) => [newGuest, ...prev]); setLastSubmittedGuest(newGuest); setShowSuccessModal(true); setIsSubmitting(false);
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
     setPhotoData(null); setSignatureData(null); stopCamera(); clearSignature();
   };
@@ -341,28 +265,21 @@ export default function App() {
     if (!window.confirm("Yakin ingin menghapus data tamu ini secara PERMANEN?")) return;
     setIsSyncing(true);
     try {
-      if (scriptUrl) {
-        await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete', id: guestId }) });
-      }
-      setGuestList(prev => prev.filter(g => g.id !== guestId));
-      setPreviewItem(null); showToast('Terhapus permanen.', 'success');
+      if (scriptUrl) { await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete', id: guestId }) }); }
+      setGuestList(prev => prev.filter(g => g.id !== guestId)); setPreviewItem(null); showToast('Terhapus permanen.', 'success');
     } catch (err) { showToast('Gagal menghapus dari server.', 'error'); } finally { setIsSyncing(false); }
   };
 
   const handleRefreshSync = async () => {
     setIsSyncing(true);
     try {
-      const response = await fetch(scriptUrl);
-      const remoteGuestList = await response.json();
-      if (Array.isArray(remoteGuestList)) {
-        setGuestList(remoteGuestList); showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success');
-      }
+      const response = await fetch(scriptUrl); const remoteGuestList = await response.json();
+      if (Array.isArray(remoteGuestList)) { setGuestList(remoteGuestList); showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success'); }
     } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
   };
 
   const filteredGuests = guestList.filter((g) =>
-    g.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    g.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    g.nama.toLowerCase().includes(searchQuery.toLowerCase()) || g.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.whatsapp.includes(searchQuery) || g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -376,38 +293,52 @@ export default function App() {
       )}
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
-        {/* HEADER SECTION - DIPERBESAR & ADA ICON LOKASI */}
-        <div className="bg-gradient-to-r from-[#003B73] via-[#004B93] to-[#002D59] rounded-3xl p-5 sm:p-7 shadow-lg text-white">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <div className="flex-shrink-0"><ImmigrationLogo className="w-16 h-20 sm:w-20 sm:h-24" /></div>
-              <div className="space-y-1">
-                <h1 className="text-base sm:text-lg font-black text-white tracking-wide leading-tight">
-                  KANTOR IMIGRASI KELAS II TPI KEDIRI
+        
+        {/* ========================================================= */}
+        {/* HEADER SECTION - REVISI DESAIN RAPI, BERSIH, PROFESIONAL  */}
+        {/* ========================================================= */}
+        <div className="bg-gradient-to-br from-[#003B73] via-[#004B93] to-[#001B36] rounded-3xl p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,59,115,0.25)] text-white relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            
+            {/* Logo & Judul */}
+            <div className="flex items-center gap-5 sm:gap-7">
+              <div className="flex-shrink-0 bg-white/10 p-3 sm:p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
+                <ImmigrationLogo className="w-14 h-16 sm:w-16 sm:h-20" />
+              </div>
+              <div className="flex flex-col justify-center">
+                <h1 className="text-[10px] sm:text-xs font-bold text-blue-200 tracking-[0.2em] uppercase mb-1.5 opacity-90">
+                  Kantor Imigrasi Kelas II TPI Kediri
                 </h1>
-                <p className="text-lg sm:text-2xl font-black text-amber-300 tracking-wide uppercase mt-1">
+                <p className="text-xl sm:text-3xl font-black text-white uppercase leading-tight drop-shadow-md">
                   {eventConfig.namaKegiatan}
                 </p>
-                <div className="flex items-start gap-1.5 mt-1.5 text-blue-100">
-                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm sm:text-base font-semibold leading-snug">
+                <div className="flex items-center gap-1.5 mt-2 sm:mt-2.5 text-amber-300">
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 drop-shadow-sm" />
+                  <p className="text-xs sm:text-sm font-semibold tracking-wide drop-shadow-sm">
                     {eventConfig.lokasi}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/15">
-              <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/25 backdrop-blur-md text-xs font-mono font-medium text-amber-300 border border-white/10">
+            {/* Jam & Tombol Admin */}
+            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-white/15">
+              <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/20 backdrop-blur-md text-xs font-mono font-medium text-amber-300 border border-white/10">
                 <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
                 <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
               </div>
               {viewMode === 'form' ? (
-                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-[#003B73] text-xs font-bold shadow-md hover:bg-blue-50 transition"><Lock className="w-3.5 h-3.5" /><span>Admin</span></button>
+                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-[#003B73] text-xs font-bold shadow-md hover:bg-blue-50 transition">
+                  <Lock className="w-3.5 h-3.5" /><span>Admin</span>
+                </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold backdrop-blur-md transition border border-white/20"><ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span></button>
-                  <button onClick={handleAdminLogout} className="p-2 bg-rose-500/80 hover:bg-rose-600 text-white rounded-2xl transition border border-rose-400/30"><LogOut className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition border border-white/20">
+                    <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
+                  </button>
+                  <button onClick={handleAdminLogout} className="p-2.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-2xl transition border border-rose-400/30">
+                    <LogOut className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
@@ -460,7 +391,6 @@ export default function App() {
                     <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-blue-50/50 border border-blue-200 text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                   </div>
                 )}
-                {/* --- TAMBAHAN KOTAK KESAN / KRITIK / SARAN --- */}
                 <div className="space-y-1.5 pt-2">
                   <label className="text-xs font-semibold text-slate-700">Kesan/Kritik/Saran/Masukan <span className="text-slate-400 font-normal">(Opsional)</span></label>
                   <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition resize-none h-20" />
@@ -468,7 +398,6 @@ export default function App() {
               </div>
 
               <div className="lg:col-span-6 space-y-5">
-                {/* Kamera */}
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3.5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5 text-[#007AFF]" /> Foto Pengunjung <span className="text-rose-500">*</span></h3>
@@ -500,7 +429,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Tanda Tangan */}
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><PenTool className="w-3.5 h-3.5 text-[#007AFF]" /> Tanda Tangan <span className="text-rose-500">*</span></h3>
@@ -512,7 +440,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <button type="submit" disabled={isSubmitting} className="w-full py-3.5 px-5 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,122,255,0.25)] disabled:opacity-50 transition">
+                <button type="submit" disabled={isSubmitting} className="w-full py-4 px-5 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,122,255,0.25)] disabled:opacity-50 transition">
                   {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
@@ -534,7 +462,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* TAB DAFTAR PENGUNJUNG */}
             {adminTab === 'list' && (
               <div className="space-y-4">
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
@@ -596,7 +523,6 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB INFO PAMERAN */}
             {adminTab === 'event' && (
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
                 <div><h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Edit3 className="w-4 h-4 text-[#007AFF]" />Pengaturan Nama Kegiatan & Lokasi</h2></div>
@@ -619,9 +545,8 @@ export default function App() {
         </div>
       </footer>
 
-      {/* MODAL ADMIN LOGIN */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
             <div className="text-center space-y-1"><div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]"><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3></div>
             {loginError && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-medium">{loginError}</div>}
@@ -634,21 +559,30 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL SUCCESS */}
+      {/* ========================================================= */}
+      {/* MODAL SUCCESS - REVISI TOMBOL "TUTUP"                       */}
+      {/* ========================================================= */}
       {showSuccessModal && lastSubmittedGuest && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.15)] space-y-4">
-            <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-7 h-7" /></div>
-            <div><h3 className="text-base font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3><p className="text-xs text-slate-500 font-medium mt-1">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p></div>
-            <button onClick={() => setShowSuccessModal(false)} className="w-full py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-bold transition shadow-sm">Pengunjung Berikutnya</button>
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-8 h-8" /></div>
+            <div>
+              <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
+              <p className="text-sm text-slate-500 font-medium mt-1.5 mb-2">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
+            </div>
+            <button 
+              onClick={() => setShowSuccessModal(false)} 
+              className="w-full py-3.5 mt-2 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-sm font-black tracking-widest transition shadow-[0_4px_16px_rgba(0,122,255,0.3)]"
+            >
+              TUTUP
+            </button>
           </div>
         </div>
       )}
 
-      {/* MODAL PREVIEW DETAIL */}
       {previewItem && (
-        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-[#1C1C1E]">Detail Kartu Pengunjung</h3>
               <button onClick={() => setPreviewItem(null)} className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"><X className="w-4 h-4" /></button>
@@ -669,7 +603,6 @@ export default function App() {
               <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium text-[10px]">{previewItem.ipAddress}</span></div>
             </div>
 
-            {/* Menampilkan Kesan jika diisi */}
             {previewItem.kesan && previewItem.kesan !== '-' && (
               <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100">
                 <span className="text-xs text-[#003B73] font-bold block mb-1">Kesan / Pesan:</span>
@@ -678,8 +611,8 @@ export default function App() {
             )}
 
             <div className="flex gap-2">
-              <button onClick={() => handleDeleteSingleGuest(previewItem.id)} className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"><Trash2 className="w-4 h-4" /> Hapus Permanen</button>
-              <button onClick={() => setPreviewItem(null)} className="flex-1 py-2.5 bg-[#E5E5EA] hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">Tutup</button>
+              <button onClick={() => handleDeleteSingleGuest(previewItem.id)} className="flex-1 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"><Trash2 className="w-4 h-4" /> Hapus Permanen</button>
+              <button onClick={() => setPreviewItem(null)} className="flex-1 py-3 bg-[#E5E5EA] hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">Tutup</button>
             </div>
           </div>
         </div>
