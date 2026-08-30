@@ -32,7 +32,6 @@ try {
   console.warn("Firebase berjalan dalam mode lokal (fallback).");
 }
 
-// --- LOGO MENGGUNAKAN FILE GAMBAR PNG/JPG ---
 function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
   return (
     <img 
@@ -40,7 +39,6 @@ function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
       alt="Logo Imigrasi" 
       className={`${className} object-contain`} 
       onError={(e) => {
-        // Fallback jika gambar belum ada di folder public
         e.target.onerror = null; 
         e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg/1024px-Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg.png";
       }}
@@ -51,6 +49,7 @@ function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
 export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Pengaturan Teks Header (Dilengkapi localStorage fallback)
   const [eventConfig, setEventConfig] = useState(() => {
@@ -104,7 +103,19 @@ export default function App() {
   const signatureCanvasRef = useRef(null);
   const isDrawingRef = useRef(false);
 
-  // Efek: Menyimpan URL Script & Guest List ke LocalStorage otomatis
+  // Toast Notification Helper
+  const showToast = (msg, type = 'success') => {
+    setToastMessage({ msg, type });
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleCopyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(true);
+    showToast('Kode GAS berhasil disalin ke clipboard!', 'success');
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
   useEffect(() => {
     localStorage.setItem('imigrasi_guest_list', JSON.stringify(guestList));
   }, [guestList]);
@@ -113,7 +124,6 @@ export default function App() {
     localStorage.setItem('imigrasi_script_url', scriptUrl);
   }, [scriptUrl]);
 
-  // Efek: Ambil IP Address
   useEffect(() => {
     fetch('https://api.ipify.org?format=json')
       .then(res => res.json())
@@ -121,16 +131,14 @@ export default function App() {
       .catch(() => setUserIpAddress('IP Tidak Diketahui'));
   }, []);
 
-  // Efek: Jam Realtime
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Efek: Firebase Listener untuk Info Pameran & URL Script (OTOMATIS SINKRON KE HP PENGUNJUNG)
+  // Firebase Realtime Listener untuk Info Pameran & URL Script (Otomatis Sync ke semua HP Pengunjung)
   useEffect(() => {
     if (db) {
-      // 1. Mendengarkan perubahan Info Pameran
       const unsubPameran = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -140,7 +148,6 @@ export default function App() {
         }
       });
 
-      // 2. Mendengarkan perubahan URL Google Apps Script (Agar HP tamu otomatis tahu URL-nya)
       const unsubIntegrasi = onSnapshot(doc(db, "pengaturan", "integrasi"), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -158,14 +165,8 @@ export default function App() {
     }
   }, []);
 
-  // --- [PENAMBAHAN KODE ANDA - PART 2.2] ---
-    }
-    document.body.removeChild(el);
-  };
-
-  // --- Otorisasi Admin ---
   const handleOpenAdmin = () => {
-    stopCamera(); // Matikan kamera jika pindah layar
+    stopCamera();
     if (!isAdminLoggedIn) {
       setLoginError('');
       setShowLoginModal(true);
@@ -194,7 +195,6 @@ export default function App() {
     showToast('Keluar dari Panel Admin', 'info');
   };
 
-  // --- Mengubah Info Pameran ---
   const handleSaveEventConfig = async (e) => {
     e.preventDefault();
     if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim()) {
@@ -217,22 +217,25 @@ export default function App() {
     }
   };
 
-  // --- Menyimpan URL Script ke Firebase Cloud (Agar semua HP Pengunjung tahu URL-nya) ---
+  // Menyimpan URL Script ke Firebase Cloud agar semua HP Pengunjung otomatis tahu URL-nya
   const handleSaveScriptUrl = async () => {
+    if (!scriptUrl.trim()) {
+      showToast('URL Google Apps Script tidak boleh kosong', 'error');
+      return;
+    }
     localStorage.setItem('imigrasi_script_url', scriptUrl);
     if (db) {
       try {
-        await setDoc(doc(db, "pengaturan", "integrasi"), { scriptUrl: scriptUrl });
+        await setDoc(doc(db, "pengaturan", "integrasi"), { scriptUrl: scriptUrl }, { merge: true });
         showToast('URL Google Drive berhasil disinkronisasi ke Cloud (Semua HP tamu siap)!', 'success');
       } catch (err) {
-        showToast('URL disimpan lokal (Gagal ke Cloud).', 'info');
+        showToast('URL disimpan lokal (Gagal ke Cloud Firebase).', 'info');
       }
     } else {
-      showToast('URL disimpan lokal.', 'success');
+      showToast('URL Webhook Google Drive disimpan secara lokal.', 'success');
     }
   };
 
-  // --- MANAJEMEN KAMERA (Dioptimasi untuk performa & anti memory-leak) ---
   const startCamera = async () => {
     setCameraError('');
     setIsCameraActive(true);
@@ -256,13 +259,12 @@ export default function App() {
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop()); // Matikan lampu kamera
+      tracks.forEach((track) => track.stop());
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
   };
 
-  // Pastikan kamera mati saat komponen unmount/berubah mode
   useEffect(() => {
     return () => stopCamera();
   }, [viewMode]);
@@ -277,21 +279,18 @@ export default function App() {
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = canvasPhotoRef.current || document.createElement('canvas');
-    // Batasi ukuran maksimal agar base64 tidak terlalu besar (Optimalisasi)
     const MAX_WIDTH = 480; 
     const scale = MAX_WIDTH / video.videoWidth;
     canvas.width = MAX_WIDTH;
     canvas.height = video.videoHeight * scale;
     const ctx = canvas.getContext('2d');
 
-    // Mirroring jika kamera depan
     if (cameraFacing === 'user') {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    // KOMPRESI: JPEG kualitas 65% untuk efisiensi transfer data Google Drive
     const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     setPhotoData(dataUrl);
     stopCamera();
@@ -301,8 +300,7 @@ export default function App() {
   const handleFileUploadPhoto = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validasi ukuran < 5MB
-      if(file.size > 5 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) {
         showToast('Ukuran foto terlalu besar (Maks 5MB)', 'error');
         return;
       }
@@ -315,7 +313,6 @@ export default function App() {
     }
   };
 
-  // --- SIGNATURE PAD ---
   const initSignaturePad = () => {
     const canvas = signatureCanvasRef.current;
     if (!canvas) return;
@@ -325,16 +322,15 @@ export default function App() {
     canvas.height = rect.height * 2;
     ctx.scale(2, 2);
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3; // Sedikit ditebalkan
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   };
 
-  // Gunakan resize observer agar tanda tangan tidak bergeser saat orientasi layar HP berubah
   useEffect(() => {
     if (viewMode === 'form' && !signatureData) {
       initSignaturePad();
-      const handleResize = () => { if(!signatureData) initSignaturePad(); };
+      const handleResize = () => { if (!signatureData) initSignaturePad(); };
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
@@ -344,10 +340,7 @@ export default function App() {
     const rect = canvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
-    };
+    return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
   const startDrawing = (e) => {
@@ -362,7 +355,7 @@ export default function App() {
 
   const draw = (e) => {
     if (!isDrawingRef.current) return;
-    e.preventDefault(); // Cegah scrolling layar HP saat tanda tangan
+    e.preventDefault();
     const canvas = signatureCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -389,7 +382,6 @@ export default function App() {
     setSignatureData(null);
   };
 
-  // --- SUBMIT UTAMA ---
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -404,14 +396,12 @@ export default function App() {
 
     setIsSubmitting(true);
     
-    // Formatting Waktu
     const now = new Date();
     const formattedDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
     const finalKeperluan = formData.layanan === 'Lainnya' ? formData.layananLainnya : formData.layanan;
     const uniqueId = 'KDR-' + Date.now().toString().slice(-6);
 
-    // Data Baru
     const newGuest = {
       id: uniqueId,
       hariTanggal: formattedDate,
@@ -426,7 +416,6 @@ export default function App() {
       driveStatus: scriptUrl ? 'Mengunggah ke Cloud...' : 'Tersimpan Lokal'
     };
 
-    // Proses Sinkronisasi ke Google Apps Script (Drive & Sheets)
     if (scriptUrl) {
       try {
         const payload = {
@@ -455,20 +444,17 @@ export default function App() {
           newGuest.driveStatus = 'Tersimpan di Google Server';
         } else {
           newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
-          console.error("GAS Error:", resJson.message);
         }
       } catch (err) {
         newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)';
       }
     }
 
-    // Update List & Tampilkan Sukses
     setGuestList((prev) => [newGuest, ...prev]);
     setLastSubmittedGuest(newGuest);
     setShowSuccessModal(true);
     setIsSubmitting(false);
 
-    // Reset Form
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '' });
     setPhotoData(null);
     setSignatureData(null);
@@ -476,11 +462,10 @@ export default function App() {
     clearSignature();
   };
 
-  // --- Fitur Hapus Semua Data Tamu ---
   const handleClearGuestList = () => {
-    if(window.confirm("PERINGATAN: Apakah Anda yakin ingin menghapus seluruh riwayat data tamu di perangkat ini? (Data di Google Sheet tidak terhapus)")) {
+    if (window.confirm("Apakah Anda yakin ingin menghapus seluruh riwayat data tamu lokal di perangkat ini?")) {
       setGuestList([]);
-      showToast('Seluruh riwayat tamu lokal telah dibersihkan.', 'success');
+      showToast('Seluruh riwayat lokal dibersihkan.', 'success');
     }
   };
 
@@ -492,7 +477,6 @@ export default function App() {
       g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Fungsi untuk menarik data manual dari Spreadsheet
   const handleRefreshSync = async () => {
     if (!scriptUrl) {
       showToast('Simpan URL Google Apps Script di tab Google Drive terlebih dahulu.', 'error');
@@ -507,13 +491,12 @@ export default function App() {
         showToast(`Berhasil ditarik! ${remoteGuestList.length} tamu sinkron.`, 'success');
       }
     } catch (err) {
-      showToast('Gagal menarik data. Cek koneksi / URL Google Drive.', 'error');
+      showToast('Gagal menarik data dari Google Spreadsheet.', 'error');
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // KODE GOOGLE APPS SCRIPT YANG SUDAH DIPERBARUI (doGet & doPost)
   const gasSampleCode = `function doGet(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -533,8 +516,11 @@ export default function App() {
       var hariTanggal = Utilities.formatDate(jsDate, Session.getScriptTimeZone(), "EEEE, d MMMM yyyy");
       
       guestList.push({
+        id: row[1],
         hariTanggal: hariTanggal,
         jamKunjungan: row[2], 
+        namaKegiatan: row[3],
+        lokasi: row[4],
         nama: row[5],         
         alamat: row[6],       
         whatsapp: row[7].toString(), 
@@ -546,7 +532,7 @@ export default function App() {
       });
     }
     
-    guestList.reverse(); // Urutkan tamu terbaru di atas
+    guestList.reverse();
     return ContentService.createTextOutput(JSON.stringify(guestList)).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()})).setMimeType(ContentService.MimeType.JSON);
@@ -561,7 +547,6 @@ function doPost(e) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getActiveSheet();
     
-    // Auto-create Header
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(["Timestamp", "ID Tamu", "Jam", "Nama Pameran", "Lokasi", "Nama Lengkap", "Alamat", "WhatsApp", "Keperluan", "IP", "Link Foto", "Link TTD"]);
       sheet.getRange("A1:L1").setBackground("#003B73").setFontColor("#FFFFFF").setFontWeight("bold");
@@ -595,7 +580,7 @@ function doPost(e) {
       
       {/* Toast Notification */}
       {toastMessage && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : toastMessage.type === 'error' ? 'bg-white/95 text-rose-800 border-rose-200' : 'bg-white/95 text-slate-800 border-slate-200'}`}>
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />}
           <span>{toastMessage.msg}</span>
         </div>
@@ -779,7 +764,7 @@ function doPost(e) {
                       <List className="w-4 h-4 text-[#007AFF]" />
                       Rekapitulasi Pengunjung ({guestList.length})
                     </h2>
-                    <p className="text-xs text-slate-500 font-medium">Data kehadiran tercatat pada perangkat ini</p>
+                    <p className="text-xs text-slate-500 font-medium">Data kehadiran dari Google Spreadsheet utama</p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -836,6 +821,7 @@ function doPost(e) {
                   <div className="bg-white/85 border border-white/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-2">
                     <User className="w-8 h-8 text-slate-400" />
                     <h3 className="text-sm font-semibold text-slate-800">Belum Ada Tamu Tercatat</h3>
+                    <p className="text-xs text-slate-500">Klik tombol <strong>Sync Data</strong> di atas untuk menarik data terbaru dari Google Spreadsheet.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -891,9 +877,7 @@ function doPost(e) {
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 space-y-5 shadow-sm">
                 <div>
                   <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><FolderOpen className="w-4 h-4 text-[#007AFF]" />Integrasi Google Drive & Spreadsheet</h2>
-                  {/* --- [PENAMBAHAN KODE ANDA - PART 3.4] --- */}
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">Masukkan URL Web App dari Google Apps Script agar setiap tamu otomatis masuk ke Spreadsheet lengkap dengan foto dan tanda tangan kompresi. URL ini juga digunakan untuk sinkronisasi data antar perangkat Admin (PC/HP).</p>
-                  {/* --- [AKHIR PENAMBAHAN PART 3.4] --- */}
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">Masukkan URL Web App dari Google Apps Script. Saat Anda klik Simpan URL, URL ini akan otomatis tersinkronisasi ke Firebase Cloud sehingga seluruh HP/Tablet pengunjung langsung siap mengirim data ke spreadsheet utama!</p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
@@ -904,7 +888,7 @@ function doPost(e) {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script Baru (Lebih Lengkap):</span>
+                    <span className="text-xs font-semibold text-slate-700">Kode Google Apps Script Lengkap (`doGet` & `doPost`):</span>
                     <button onClick={() => handleCopyCode(gasSampleCode)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F2F2F7] text-xs text-[#007AFF] font-semibold hover:bg-[#E5E5EA] transition">
                       {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       {copiedCode ? 'Tersalin' : 'Salin Kode'}
