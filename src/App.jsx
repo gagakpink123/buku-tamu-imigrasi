@@ -7,7 +7,7 @@ import {
   Edit3, Save, ArrowLeft, Trash
 } from 'lucide-react';
 
-// 1. IMPORT FIREBASE (Sistem Database Real-time)
+// 1. IMPORT FIREBASE
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
@@ -35,29 +35,19 @@ try {
 // --- HELPER UNTUK MENAMPILKAN GAMBAR (Base64 / Google Drive Link) ---
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
-  if (imageData.startsWith('data:')) {
-    return imageData;
-  }
-  // Konversi link Google Drive agar bisa dirender sebagai tag <img>
+  if (imageData.startsWith('data:')) return imageData;
   if (imageData.includes('drive.google.com') || imageData.includes('googleusercontent.com')) {
     try {
       let fileId = '';
-      if (imageData.includes('/d/')) {
-        fileId = imageData.split('/d/')[1].split('/')[0];
-      } else if (imageData.includes('id=')) {
-        fileId = imageData.split('id=')[1].split('&')[0];
-      }
-      if (fileId) {
-        return `https://lh3.googleusercontent.com/d/${fileId}`;
-      }
-    } catch (e) {
-      return imageData;
-    }
+      if (imageData.includes('/d/')) fileId = imageData.split('/d/')[1].split('/')[0];
+      else if (imageData.includes('id=')) fileId = imageData.split('id=')[1].split('&')[0];
+      if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}`;
+    } catch (e) { return imageData; }
   }
   return imageData;
 };
 
-// --- LOGO MENGGUNAKAN FILE GAMBAR PNG/JPG ---
+// --- LOGO ---
 function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
   return (
     <img 
@@ -76,7 +66,6 @@ export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
 
-  // Pengaturan Teks Header (Dilengkapi localStorage fallback)
   const [eventConfig, setEventConfig] = useState(() => {
     const saved = localStorage.getItem('imigrasi_event_config');
     return saved ? JSON.parse(saved) : {
@@ -86,19 +75,18 @@ export default function App() {
   });
   const [tempEventConfig, setTempEventConfig] = useState({ ...eventConfig });
 
-  // Admin Auth
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
-  // Realtime Clock & IP Address
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userIpAddress, setUserIpAddress] = useState('Memuat IP...');
+  const [gpsLocation, setGpsLocation] = useState('Meminta akses lokasi...');
 
-  // State Formulir
+  // State Formulir ditambah 'kesan'
   const [formData, setFormData] = useState({
-    nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: ''
+    nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: ''
   });
 
   const [photoData, setPhotoData] = useState(null);
@@ -107,15 +95,14 @@ export default function App() {
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
 
-  // URL Google Apps Script PERMANEN (Sudah otomatis aktif di semua perangkat)
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbzzv3XxDuG0ksPwTuVGkot6-7rkWRDlh22Nm_g3GYSdnwMvhb35o9E_BAcxammvC5pv/exec");
+  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
+  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbzPz36vpkQU_TDt35yfixqThJeaNjiYgI7UOYsb4XdnEXX-6RJwamKsZJ72qIgCmUoJ/exec");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSubmittedGuest, setLastSubmittedGuest] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // DAFTAR TAMU
   const [guestList, setGuestList] = useState(() => {
     const saved = localStorage.getItem('imigrasi_guest_list');
     return saved ? JSON.parse(saved) : [];
@@ -129,10 +116,7 @@ export default function App() {
   const signatureCanvasRef = useRef(null);
   const isDrawingRef = useRef(false);
 
-  // Efek: Menyimpan Guest List ke LocalStorage otomatis
-  useEffect(() => {
-    localStorage.setItem('imigrasi_guest_list', JSON.stringify(guestList));
-  }, [guestList]);
+  useEffect(() => { localStorage.setItem('imigrasi_guest_list', JSON.stringify(guestList)); }, [guestList]);
 
   // Efek: Ambil IP Address
   useEffect(() => {
@@ -142,13 +126,30 @@ export default function App() {
       .catch(() => setUserIpAddress('IP Tidak Diketahui'));
   }, []);
 
-  // Efek: Jam Realtime
+  // Efek: Ambil Koordinat GPS (Hanya saat di halaman form)
+  useEffect(() => {
+    if (viewMode === 'form') {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setGpsLocation(`${position.coords.latitude}, ${position.coords.longitude}`);
+          },
+          (error) => {
+            setGpsLocation('Akses lokasi ditolak/gagal');
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        setGpsLocation('GPS tidak didukung perangkat');
+      }
+    }
+  }, [viewMode]);
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Efek: Firebase Listener untuk Info Pameran
   useEffect(() => {
     if (db) {
       const unsubPameran = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
@@ -168,7 +169,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // --- Otorisasi Admin ---
   const handleOpenAdmin = () => {
     stopCamera();
     if (!isAdminLoggedIn) {
@@ -176,7 +176,7 @@ export default function App() {
       setShowLoginModal(true);
     } else {
       setViewMode('admin');
-      handleRefreshSync(); // Tarik data otomatis saat masuk admin
+      handleRefreshSync(); 
     }
   };
 
@@ -189,7 +189,7 @@ export default function App() {
       setLoginError('');
       setViewMode('admin');
       showToast('Berhasil masuk ke Panel Admin!', 'success');
-      handleRefreshSync(); // Tarik data otomatis saat login sukses
+      handleRefreshSync(); 
     } else {
       setLoginError('Username atau password admin salah!');
     }
@@ -201,190 +201,81 @@ export default function App() {
     showToast('Keluar dari Panel Admin', 'info');
   };
 
-  // --- Mengubah Info Pameran ---
   const handleSaveEventConfig = async (e) => {
     e.preventDefault();
     if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim()) {
-      showToast('Nama kegiatan dan lokasi tidak boleh kosong', 'error');
-      return;
+      showToast('Nama kegiatan dan lokasi tidak boleh kosong', 'error'); return;
     }
-    
     setEventConfig({ ...tempEventConfig });
     localStorage.setItem('imigrasi_event_config', JSON.stringify(tempEventConfig));
-    
     if (db) {
       try {
         await setDoc(doc(db, "pengaturan", "infoPameran"), tempEventConfig);
         showToast('Info pameran berhasil disinkronisasi ke Cloud!', 'success');
-      } catch (err) {
-        showToast('Info disimpan lokal (Gagal ke Cloud).', 'info');
-      }
-    } else {
-      showToast('Info disimpan lokal.', 'success');
+      } catch (err) { showToast('Info disimpan lokal.', 'info'); }
     }
   };
 
-  // --- MANAJEMEN KAMERA ---
+  // --- MANAJEMEN KAMERA & TANDA TANGAN (Diringkas agar hemat tempat) ---
   const startCamera = async () => {
-    setCameraError('');
-    setIsCameraActive(true);
+    setCameraError(''); setIsCameraActive(true);
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: cameraFacing, width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } else {
-        setCameraError('Browser tidak mendukung akses kamera langsung.');
-      }
-    } catch (err) {
-      setCameraError('Izin akses kamera ditolak oleh perangkat.');
-    }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false });
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch (err) { setCameraError('Izin akses kamera ditolak.'); }
   };
-
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop());
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
   };
-
-  useEffect(() => {
-    return () => stopCamera();
-  }, [viewMode]);
-
-  const switchCamera = () => {
-    stopCamera();
-    setCameraFacing((prev) => (prev === 'user' ? 'environment' : 'user'));
-    setTimeout(() => startCamera(), 300);
-  };
-
+  useEffect(() => { return () => stopCamera(); }, [viewMode]);
+  const switchCamera = () => { stopCamera(); setCameraFacing(p => p === 'user' ? 'environment' : 'user'); setTimeout(() => startCamera(), 300); };
   const capturePhoto = () => {
     if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasPhotoRef.current || document.createElement('canvas');
-    const MAX_WIDTH = 480; 
-    const scale = MAX_WIDTH / video.videoWidth;
-    canvas.width = MAX_WIDTH;
-    canvas.height = video.videoHeight * scale;
+    const video = videoRef.current; const canvas = canvasPhotoRef.current || document.createElement('canvas');
+    const scale = 480 / video.videoWidth; canvas.width = 480; canvas.height = video.videoHeight * scale;
     const ctx = canvas.getContext('2d');
-
-    if (cameraFacing === 'user') {
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
-    }
+    if (cameraFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-    setPhotoData(dataUrl);
-    stopCamera();
-    showToast('Foto berhasil ditangkap!', 'success');
+    setPhotoData(canvas.toDataURL('image/jpeg', 0.65)); stopCamera(); showToast('Foto ditangkap!', 'success');
   };
-
   const handleFileUploadPhoto = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if(file.size > 5 * 1024 * 1024) {
-        showToast('Ukuran foto terlalu besar (Maks 5MB)', 'error');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPhotoData(event.target.result);
-        showToast('Foto berhasil dimuat!', 'success');
-      };
-      reader.readAsDataURL(file);
-    }
+    if (file && file.size < 5000000) {
+      const reader = new FileReader(); reader.onload = (ev) => { setPhotoData(ev.target.result); showToast('Foto dimuat!', 'success'); }; reader.readAsDataURL(file);
+    } else { showToast('Ukuran foto terlalu besar', 'error'); }
   };
-
-  // --- SIGNATURE PAD ---
   const initSignaturePad = () => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    const canvas = signatureCanvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2; canvas.height = rect.height * 2; ctx.scale(2, 2);
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   };
-
   useEffect(() => {
     if (viewMode === 'form' && !signatureData) {
-      initSignaturePad();
-      const handleResize = () => { if(!signatureData) initSignaturePad(); };
-      window.addEventListener('resize', handleResize);
-      return () => window.removeEventListener('resize', handleResize);
+      initSignaturePad(); const handleResize = () => { if(!signatureData) initSignaturePad(); };
+      window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize);
     }
   }, [viewMode, signatureData]);
-
-  const getCanvasCoords = (e, canvas) => {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
-    };
+  const getCanvasCoords = (e, c) => {
+    const rect = c.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
   };
-
-  const startDrawing = (e) => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const { x, y } = getCanvasCoords(e, canvas);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    isDrawingRef.current = true;
-  };
-
-  const draw = (e) => {
-    if (!isDrawingRef.current) return;
-    e.preventDefault();
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const { x, y } = getCanvasCoords(e, canvas);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    if (isDrawingRef.current) {
-      isDrawingRef.current = false;
-      const canvas = signatureCanvasRef.current;
-      if (canvas) {
-        setSignatureData(canvas.toDataURL('image/png'));
-      }
-    }
-  };
-
-  const clearSignature = () => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setSignatureData(null);
-  };
+  const startDrawing = (e) => { const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.beginPath(); ctx.moveTo(x, y); isDrawingRef.current = true; };
+  const draw = (e) => { if (!isDrawingRef.current) return; e.preventDefault(); const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.lineTo(x, y); ctx.stroke(); };
+  const stopDrawing = () => { if (isDrawingRef.current) { isDrawingRef.current = false; const c = signatureCanvasRef.current; if (c) setSignatureData(c.toDataURL('image/png')); } };
+  const clearSignature = () => { const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height); setSignatureData(null); };
 
   // --- SUBMIT UTAMA ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formData.nama.trim()) { showToast('Masukkan Nama Lengkap', 'error'); return; }
     if (!formData.alamat.trim()) { showToast('Masukkan Alamat / Instansi', 'error'); return; }
     if (!formData.whatsapp.trim()) { showToast('Masukkan Nomor WhatsApp', 'error'); return; }
-    if (formData.layanan === 'Lainnya' && !formData.layananLainnya.trim()) {
-      showToast('Sebutkan keperluan Anda secara spesifik', 'error'); return;
-    }
+    if (formData.layanan === 'Lainnya' && !formData.layananLainnya.trim()) { showToast('Sebutkan keperluan Anda secara spesifik', 'error'); return; }
     if (!photoData) { showToast('Harap ambil foto pengunjung (Wajib)', 'error'); return; }
     if (!signatureData) { showToast('Harap bubuhkan tanda tangan (Wajib)', 'error'); return; }
 
@@ -403,14 +294,15 @@ export default function App() {
       namaKegiatan: eventConfig.namaKegiatan,
       lokasi: eventConfig.lokasi,
       ipAddress: userIpAddress,
+      gps: gpsLocation, // Menyimpan titik kordinat lokal
       ...formData,
+      kesan: formData.kesan || '-', // Simpan kesan lokal
       layanan: finalKeperluan,
       photo: photoData,
       signature: signatureData,
       driveStatus: 'Mengunggah ke Cloud...'
     };
 
-    // Kirim data ke Google Apps Script (Spreadsheet & Drive)
     if (scriptUrl) {
       try {
         const payload = {
@@ -423,27 +315,17 @@ export default function App() {
           alamat: formData.alamat,
           whatsapp: formData.whatsapp,
           keperluan: finalKeperluan,
+          kesan: formData.kesan || '-', // Mengirim kesan ke Google Sheet
           ipAddress: userIpAddress,
+          gps: gpsLocation, // Mengirim GPS ke Google Sheet
           photoBase64: photoData,
           signatureBase64: signatureData
         };
-
-        const response = await fetch(scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
+        const response = await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
         const resJson = await response.json();
-        if (resJson.status === 'success') {
-          newGuest.driveStatus = 'Tersimpan di Google Server';
-        } else {
-          newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
-          console.error("GAS Error:", resJson.message);
-        }
-      } catch (err) {
-        newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)';
-      }
+        if (resJson.status === 'success') newGuest.driveStatus = 'Tersimpan di Google Server';
+        else newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
+      } catch (err) { newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)'; }
     }
 
     setGuestList((prev) => [newGuest, ...prev]);
@@ -451,76 +333,67 @@ export default function App() {
     setShowSuccessModal(true);
     setIsSubmitting(false);
 
-    setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '' });
-    setPhotoData(null);
-    setSignatureData(null);
-    stopCamera();
-    clearSignature();
+    setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
+    setPhotoData(null); setSignatureData(null); stopCamera(); clearSignature();
   };
 
-  const handleClearGuestList = () => {
-    if(window.confirm("PERINGATAN: Apakah Anda yakin ingin menghapus seluruh riwayat data tamu di perangkat ini? (Data di Google Sheet tidak terhapus)")) {
-      setGuestList([]);
-      showToast('Seluruh riwayat tamu lokal telah dibersihkan.', 'success');
-    }
+  const handleDeleteSingleGuest = async (guestId) => {
+    if (!window.confirm("Yakin ingin menghapus data tamu ini secara PERMANEN?")) return;
+    setIsSyncing(true);
+    try {
+      if (scriptUrl) {
+        await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete', id: guestId }) });
+      }
+      setGuestList(prev => prev.filter(g => g.id !== guestId));
+      setPreviewItem(null); showToast('Terhapus permanen.', 'success');
+    } catch (err) { showToast('Gagal menghapus dari server.', 'error'); } finally { setIsSyncing(false); }
   };
 
-  const filteredGuests = guestList.filter(
-    (g) =>
-      g.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.whatsapp.includes(searchQuery) ||
-      g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Tarik data otomatis dari Spreadsheet
   const handleRefreshSync = async () => {
     setIsSyncing(true);
     try {
       const response = await fetch(scriptUrl);
       const remoteGuestList = await response.json();
       if (Array.isArray(remoteGuestList)) {
-        setGuestList(remoteGuestList);
-        showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success');
+        setGuestList(remoteGuestList); showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success');
       }
-    } catch (err) {
-      showToast('Gagal terhubung ke cloud (Cek koneksi internet).', 'error');
-    } finally {
-      setIsSyncing(false);
-    }
+    } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
   };
 
+  const filteredGuests = guestList.filter((g) =>
+    g.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    g.alamat.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    g.whatsapp.includes(searchQuery) || g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased selection:bg-[#007AFF]/20 selection:text-[#007AFF]">
-      
-      {/* Toast Notification */}
+    <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased">
       {toastMessage && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : toastMessage.type === 'error' ? 'bg-white/95 text-rose-800 border-rose-200' : 'bg-white/95 text-slate-800 border-slate-200'}`}>
-          {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />}
+          {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
           <span>{toastMessage.msg}</span>
         </div>
       )}
 
-      {/* Main Container */}
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
-        
-        {/* HEADER SECTION */}
-        <div className="bg-gradient-to-r from-[#003B73] via-[#004B93] to-[#002D59] rounded-3xl p-5 sm:p-7 shadow-[0_8px_30px_rgba(0,59,115,0.25)] text-white transition-all">
+        {/* HEADER SECTION - DIPERBESAR & ADA ICON LOKASI */}
+        <div className="bg-gradient-to-r from-[#003B73] via-[#004B93] to-[#002D59] rounded-3xl p-5 sm:p-7 shadow-lg text-white">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
             <div className="flex items-center gap-6 sm:gap-8">
-              <div className="flex-shrink-0">
-                <ImmigrationLogo className="w-16 h-20 sm:w-20 sm:h-24" />
-              </div>
+              <div className="flex-shrink-0"><ImmigrationLogo className="w-16 h-20 sm:w-20 sm:h-24" /></div>
               <div className="space-y-1">
                 <h1 className="text-base sm:text-lg font-black text-white tracking-wide leading-tight">
                   KANTOR IMIGRASI KELAS II TPI KEDIRI
                 </h1>
-                <p className="text-xs sm:text-sm font-bold text-amber-300 tracking-wide uppercase">
+                <p className="text-lg sm:text-2xl font-black text-amber-300 tracking-wide uppercase mt-1">
                   {eventConfig.namaKegiatan}
                 </p>
-                <p className="text-xs text-blue-100 font-medium">
-                  {eventConfig.lokasi}
-                </p>
+                <div className="flex items-start gap-1.5 mt-1.5 text-blue-100">
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm sm:text-base font-semibold leading-snug">
+                    {eventConfig.lokasi}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -530,17 +403,11 @@ export default function App() {
                 <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
               </div>
               {viewMode === 'form' ? (
-                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-[#003B73] text-xs font-bold shadow-md hover:bg-blue-50 transition-all duration-150">
-                  <Lock className="w-3.5 h-3.5 text-[#003B73]" /><span>Admin</span>
-                </button>
+                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-white text-[#003B73] text-xs font-bold shadow-md hover:bg-blue-50 transition"><Lock className="w-3.5 h-3.5" /><span>Admin</span></button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold backdrop-blur-md transition border border-white/20">
-                    <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
-                  </button>
-                  <button onClick={handleAdminLogout} className="p-2 bg-rose-500/80 hover:bg-rose-600 text-white rounded-2xl transition border border-rose-400/30">
-                    <LogOut className="w-3.5 h-3.5" />
-                  </button>
+                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold backdrop-blur-md transition border border-white/20"><ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span></button>
+                  <button onClick={handleAdminLogout} className="p-2 bg-rose-500/80 hover:bg-rose-600 text-white rounded-2xl transition border border-rose-400/30"><LogOut className="w-3.5 h-3.5" /></button>
                 </div>
               )}
             </div>
@@ -550,32 +417,30 @@ export default function App() {
         {/* TAMPILAN 1: FORMULIR UTAMA */}
         {viewMode === 'form' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] text-center space-y-1.5">
+            <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-sm text-center space-y-1.5">
               <h2 className="text-lg sm:text-xl font-extrabold text-[#1C1C1E] tracking-tight">DAFTAR KEHADIRAN PENGUNJUNG</h2>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#F2F2F7] rounded-full text-xs text-slate-700 font-medium">
                 <Calendar className="w-3.5 h-3.5 text-[#007AFF]" />
-                <span><strong>Hari & tanggal:</strong> {currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                <span><strong>Hari/Tanggal:</strong> {currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              <div className="lg:col-span-6 bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-4">
+              <div className="lg:col-span-6 bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
                 <div className="border-b border-slate-100 pb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-[#007AFF]" /> Informasi Pengunjung
-                  </h3>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[#007AFF]" /> Informasi Pengunjung</h3>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nama Lengkap <span className="text-rose-500">*</span></label>
-                  <input type="text" required placeholder="Contoh: Budi Santoso" value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 focus:bg-white focus:border-[#007AFF] text-xs sm:text-sm font-medium outline-none transition" />
+                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Alamat Singkat / Instansi <span className="text-rose-500">*</span></label>
-                  <input type="text" required placeholder="Contoh: Kec. Pare / Komunitas UMKM" value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 focus:bg-white focus:border-[#007AFF] text-xs sm:text-sm font-medium outline-none transition" />
+                  <label className="text-xs font-semibold text-slate-700">Alamat / Instansi <span className="text-rose-500">*</span></label>
+                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nomor WhatsApp <span className="text-rose-500">*</span></label>
-                  <input type="tel" required placeholder="Contoh: 081234567890" value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 focus:bg-white focus:border-[#007AFF] text-xs sm:text-sm font-mono font-medium outline-none transition" />
+                  <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Keperluan / Layanan Stand <span className="text-rose-500">*</span></label>
@@ -586,20 +451,25 @@ export default function App() {
                       <option value="Kunjungan Silaturahmi">Kunjungan Silaturahmi</option>
                       <option value="Lainnya">Lainnya</option>
                     </select>
-                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
                 {formData.layanan === 'Lainnya' && (
                   <div className="space-y-1.5 animate-in fade-in duration-200">
                     <label className="text-xs font-semibold text-[#007AFF]">Sebutkan Keperluan Lainnya <span className="text-rose-500">*</span></label>
-                    <input type="text" required placeholder="Masukkan keterangan..." value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-blue-50/50 border border-blue-200 text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                    <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-blue-50/50 border border-blue-200 text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
                   </div>
                 )}
+                {/* --- TAMBAHAN KOTAK KESAN / KRITIK / SARAN --- */}
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-xs font-semibold text-slate-700">Kesan/Kritik/Saran/Masukan <span className="text-slate-400 font-normal">(Opsional)</span></label>
+                  <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition resize-none h-20" />
+                </div>
               </div>
 
               <div className="lg:col-span-6 space-y-5">
                 {/* Kamera */}
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-3.5">
+                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3.5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5 text-[#007AFF]" /> Foto Pengunjung <span className="text-rose-500">*</span></h3>
                     {photoData && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Foto Siap</span>}
@@ -631,7 +501,7 @@ export default function App() {
                 </div>
 
                 {/* Tanda Tangan */}
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-3">
+                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><PenTool className="w-3.5 h-3.5 text-[#007AFF]" /> Tanda Tangan <span className="text-rose-500">*</span></h3>
                     <button type="button" onClick={clearSignature} className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition"><Trash2 className="w-3 h-3" /> Hapus</button>
@@ -650,12 +520,9 @@ export default function App() {
           </div>
         )}
 
-        {/* ======================================================== */}
         {/* TAMPILAN 2: HALAMAN ADMIN */}
-        {/* ======================================================== */}
         {viewMode === 'admin' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            {/* Tab Navigasi Admin (Tanpa Tab Google Drive) */}
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600 hover:bg-black/5'}`}>
@@ -667,65 +534,29 @@ export default function App() {
               </div>
             </div>
 
-            {/* 1. TAB DAFTAR PENGUNJUNG (BENTUK LIST) */}
+            {/* TAB DAFTAR PENGUNJUNG */}
             {adminTab === 'list' && (
               <div className="space-y-4">
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                   <div>
-                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
-                      <List className="w-4 h-4 text-[#007AFF]" />
-                      Rekapitulasi Pengunjung ({guestList.length})
-                    </h2>
+                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><List className="w-4 h-4 text-[#007AFF]" />Rekapitulasi Pengunjung ({guestList.length})</h2>
                     <p className="text-xs text-slate-500 font-medium">Data sinkron otomatis dengan Google Spreadsheet Cloud</p>
                   </div>
-
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-56">
                       <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Cari nama / alamat..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white focus:border-[#007AFF] outline-none font-medium transition"
-                      />
+                      <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white focus:border-[#007AFF] outline-none font-medium transition" />
                     </div>
-
-                    <button
-                      onClick={handleRefreshSync}
-                      disabled={isSyncing}
-                      className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data
-                    </button>
-
-                    <button
-                      onClick={() => {
+                    <button onClick={handleRefreshSync} disabled={isSyncing} className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
+                    <button onClick={() => {
                         const csvContent = 'data:text/csv;charset=utf-8,' +
-                          ['ID,Tanggal,Jam,Nama Pameran,Lokasi,IP,Nama,Alamat,WhatsApp,Keperluan'].join(',') + '\n' +
-                          guestList.map(g => `"${g.id}","${g.hariTanggal}","${g.jamKunjungan}","${g.namaKegiatan}","${g.lokasi}","${g.ipAddress}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}"`).join('\n');
-                        const encodedUri = encodeURI(csvContent);
-                        const link = document.createElement('a');
-                        link.setAttribute('href', encodedUri);
-                        link.setAttribute('download', `Buku_Tamu_Imigrasi_Kediri_${new Date().toISOString().slice(0, 10)}.csv`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      }}
-                      disabled={guestList.length === 0}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5" /> CSV
-                    </button>
-                    
-                    <button
-                      onClick={handleClearGuestList}
-                      disabled={guestList.length === 0}
-                      className="px-4 py-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                      title="Bersihkan daftar dari perangkat ini"
-                    >
-                      <Trash className="w-3.5 h-3.5" /> Bersihkan
-                    </button>
+                          ['ID,Tanggal,Jam,Nama Pameran,Lokasi,IP,GPS,Nama,Alamat,WhatsApp,Keperluan,Kesan/Pesan'].join(',') + '\n' +
+                          guestList.map(g => `"${g.id}","${g.hariTanggal}","${g.jamKunjungan}","${g.namaKegiatan}","${g.lokasi}","${g.ipAddress}","${g.gps}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}","${g.kesan || '-'}"`).join('\n');
+                        const encodedUri = encodeURI(csvContent); const link = document.createElement('a'); link.setAttribute('href', encodedUri);
+                        link.setAttribute('download', `Buku_Tamu_Imigrasi_${new Date().toISOString().slice(0, 10)}.csv`);
+                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                      }} disabled={guestList.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                    ><Download className="w-3.5 h-3.5" /> CSV</button>
                   </div>
                 </div>
 
@@ -735,36 +566,27 @@ export default function App() {
                     <h3 className="text-sm font-semibold text-slate-800">Belum Ada Tamu Tercatat</h3>
                   </div>
                 ) : (
-                  // TAMPILAN BENTUK LIST VERTICAL
                   <div className="space-y-3">
                     {filteredGuests.map((guest) => (
                       <div key={guest.id} className="bg-white/90 border border-white/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-sm transition-all relative overflow-hidden">
                         <div className={`absolute top-0 left-0 w-1.5 h-full ${guest.driveStatus && guest.driveStatus.includes('Gagal') ? 'bg-rose-400' : 'bg-emerald-400'}`} title={guest.driveStatus} />
-                        
                         <div className="flex items-center gap-4 pl-2">
                           <div onClick={() => setPreviewItem(guest)} className="w-14 h-14 rounded-2xl overflow-hidden bg-[#F2F2F7] border border-slate-200 flex-shrink-0 cursor-pointer shadow-inner">
                             <img src={resolveImageSrc(guest.photo)} alt={guest.nama} className="w-full h-full object-cover" />
                           </div>
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4>
-                              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-[#007AFF] font-semibold">{guest.layanan}</span>
-                            </div>
+                            <div className="flex items-center gap-2"><h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4><span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-[#007AFF] font-semibold">{guest.layanan}</span></div>
                             <p className="text-xs text-slate-500 font-medium">{guest.alamat} • WhatsApp: <span className="font-mono">{guest.whatsapp}</span></p>
-                            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                              <Clock className="w-3 h-3 text-slate-400" /> {guest.hariTanggal || '-'} • {guest.jamKunjungan}
-                            </p>
+                            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {guest.hariTanggal || '-'} • {guest.jamKunjungan}</p>
                           </div>
                         </div>
-
                         <div className="flex items-center justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                           <div className="hidden lg:flex flex-col items-end text-[11px] text-slate-400 font-mono">
                             <span>ID: {guest.id}</span>
                             <span className="text-emerald-600 font-medium">{guest.driveStatus || 'Tersimpan'}</span>
                           </div>
                           <button onClick={() => setPreviewItem(guest)} className="px-4 py-2 bg-[#F2F2F7] hover:bg-[#007AFF] hover:text-white text-[#007AFF] rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow-sm">
-                            <span>Detail</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <span>Detail</span><ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -774,32 +596,21 @@ export default function App() {
               </div>
             )}
 
-            {/* 2. TAB INFO PAMERAN */}
+            {/* TAB INFO PAMERAN */}
             {adminTab === 'event' && (
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
-                <div>
-                  <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Edit3 className="w-4 h-4 text-[#007AFF]" />Pengaturan Nama Kegiatan & Lokasi</h2>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">Ubah teks nama kegiatan pameran dan lokasi pada header secara permanen</p>
-                </div>
+                <div><h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Edit3 className="w-4 h-4 text-[#007AFF]" />Pengaturan Nama Kegiatan & Lokasi</h2></div>
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran (Huruf Kapital)</label>
-                    <input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white focus:border-[#007AFF] outline-none transition" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan di Bawah Nama Kegiatan</label>
-                    <input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
-                  </div>
-                  <button type="submit" className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-xs shadow-sm transition"><Save className="w-4 h-4" /><span>Simpan Perubahan Permanen</span></button>
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
+                  <button type="submit" className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-xs shadow-sm transition"><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
                 </form>
               </div>
             )}
           </div>
         )}
-
       </div>
 
-      {/* FOOTER RESMI INSTANSI */}
       <footer className="mt-auto bg-[#002D59] text-white py-6 px-4 text-center border-t border-blue-900/40">
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
           <p className="font-black tracking-wider text-amber-300">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
@@ -812,19 +623,12 @@ export default function App() {
       {showLoginModal && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]"><ShieldCheck className="w-6 h-6" /></div>
-              <h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3>
-              <p className="text-xs text-slate-500 font-medium">Masukkan akun untuk membuka panel admin</p>
-            </div>
+            <div className="text-center space-y-1"><div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]"><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3></div>
             {loginError && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-medium">{loginError}</div>}
             <form onSubmit={handleAdminLogin} className="space-y-2.5">
               <input type="text" required placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none" />
               <input type="password" required placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none" />
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button>
-                <button type="submit" className="flex-1 py-2.5 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold rounded-xl text-xs transition shadow-sm">Masuk</button>
-              </div>
+              <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button><button type="submit" className="flex-1 py-2.5 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold rounded-xl text-xs transition shadow-sm">Masuk</button></div>
             </form>
           </div>
         </div>
@@ -835,10 +639,7 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 text-center shadow-[0_16px_40px_rgba(0,0,0,0.15)] space-y-4">
             <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-7 h-7" /></div>
-            <div>
-              <h3 className="text-base font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-            </div>
+            <div><h3 className="text-base font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3><p className="text-xs text-slate-500 font-medium mt-1">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p></div>
             <button onClick={() => setShowSuccessModal(false)} className="w-full py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-bold transition shadow-sm">Pengunjung Berikutnya</button>
           </div>
         </div>
@@ -852,34 +653,34 @@ export default function App() {
               <h3 className="text-sm font-bold text-[#1C1C1E]">Detail Kartu Pengunjung</h3>
               <button onClick={() => setPreviewItem(null)} className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"><X className="w-4 h-4" /></button>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] text-slate-400 font-semibold uppercase">Foto Selfie</label>
-                <div className="mt-1 aspect-video bg-[#F2F2F7] rounded-2xl overflow-hidden border border-slate-200">
-                  <img src={resolveImageSrc(previewItem.photo)} alt="Foto" className="w-full h-full object-cover" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] text-slate-400 font-semibold uppercase">Tanda Tangan</label>
-                <div className="mt-1 aspect-video bg-white rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner">
-                  <img src={resolveImageSrc(previewItem.signature)} alt="TTD" className="max-h-full max-w-full object-contain" />
-                </div>
-              </div>
+              <div><label className="text-[11px] text-slate-400 font-semibold uppercase">Foto Selfie</label><div className="mt-1 aspect-video bg-[#F2F2F7] rounded-2xl overflow-hidden border border-slate-200"><img src={resolveImageSrc(previewItem.photo)} alt="Foto" className="w-full h-full object-cover" /></div></div>
+              <div><label className="text-[11px] text-slate-400 font-semibold uppercase">Tanda Tangan</label><div className="mt-1 aspect-video bg-white rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner"><img src={resolveImageSrc(previewItem.signature)} alt="TTD" className="max-h-full max-w-full object-contain" /></div></div>
             </div>
-
+            
             <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Status Data:</span><span className={`font-semibold ${previewItem.driveStatus && previewItem.driveStatus.includes('Gagal') ? 'text-rose-600' : 'text-emerald-600'}`}>{previewItem.driveStatus || 'Tersimpan'}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Waktu Kunjungan:</span><span className="font-semibold text-[#007AFF]">{previewItem.jamKunjungan}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal:</span><span className="font-medium text-[#1C1C1E] text-right">{previewItem.hariTanggal || '-'}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className="font-semibold text-[#007AFF] text-right">{previewItem.hariTanggal || '-'} • {previewItem.jamKunjungan}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-[#1C1C1E] text-sm text-right">{previewItem.nama}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Instansi:</span><span className="text-slate-700 font-medium text-right">{previewItem.alamat}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">WhatsApp:</span><span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Keperluan:</span><span className="text-slate-700 font-medium text-right max-w-[150px] truncate">{previewItem.layanan}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium">{previewItem.ipAddress}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Keperluan:</span><span className="text-slate-700 font-medium text-right">{previewItem.layanan}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Titik GPS:</span><span className="text-slate-700 font-mono font-medium text-right text-[10px]"><a href={`https://maps.google.com/?q=${previewItem.gps}`} target="_blank" rel="noreferrer" className="text-[#007AFF] hover:underline">{previewItem.gps}</a></span></div>
+              <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium text-[10px]">{previewItem.ipAddress}</span></div>
             </div>
 
-            <button onClick={() => setPreviewItem(null)} className="w-full py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-800 rounded-2xl text-xs font-semibold transition">Tutup</button>
+            {/* Menampilkan Kesan jika diisi */}
+            {previewItem.kesan && previewItem.kesan !== '-' && (
+              <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100">
+                <span className="text-xs text-[#003B73] font-bold block mb-1">Kesan / Pesan:</span>
+                <p className="text-xs text-slate-700 italic leading-relaxed">{previewItem.kesan}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button onClick={() => handleDeleteSingleGuest(previewItem.id)} className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"><Trash2 className="w-4 h-4" /> Hapus Permanen</button>
+              <button onClick={() => setPreviewItem(null)} className="flex-1 py-2.5 bg-[#E5E5EA] hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">Tutup</button>
+            </div>
           </div>
         </div>
       )}
