@@ -32,37 +32,6 @@ try {
   console.warn("Firebase berjalan dalam mode lokal (fallback).");
 }
 
-// --- [PENAMBAHAN KODE ANDA - PART 1] ---
-// Helper untuk mendeteksi dan menampilkan gambar (Base64 atau URL Drive RAW)
-const resolveImageSrc = (imageData) => {
-  if (!imageData) return "";
-  
-  // Jika sudah Base64 (dari input lokal HP atau cache localStorage)
-  if (imageData.startsWith('data:')) {
-    return imageData;
-  }
-  
-  // Jika URL Google Drive (dari sinkronisasi Spreadsheet)
-  // Format input biasanya: https://drive.google.com/file/d/ID_FILE/view?usp=drivesdk
-  // Kita perlu konversi ke URL RAW agar bisa tampil di tag <img>: https://drive.google.com/uc?id=ID_FILE
-  if (imageData.startsWith('https://drive.google.com')) {
-    try {
-      // Ekstrak ID File menggunakan split
-      const parts = imageData.split('/d/');
-      if (parts.length > 1) {
-        const fileId = parts[1].split('/')[0];
-        return `https://drive.google.com/uc?id=${fileId}`;
-      }
-    } catch (e) {
-      console.error("Gagal parse URL Drive:", imageData, e);
-      return imageData; // Fallback jika gagal parse
-    }
-  }
-  
-  return imageData; // Fallback default
-};
-// --- [AKHIR PENAMBAHAN PART 1] ---
-
 // --- LOGO MENGGUNAKAN FILE GAMBAR PNG/JPG ---
 function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
   return (
@@ -130,11 +99,6 @@ export default function App() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
 
-  // --- [PENAMBAHAN KODE ANDA - PART 2.1] ---
-  // State untuk Loading saat sinkronisasi otomatis
-  const [isSyncing, setIsSyncing] = useState(false);
-  // --- [AKHIR PENAMBAHAN PART 2.1] ---
-
   const videoRef = useRef(null);
   const canvasPhotoRef = useRef(null);
   const signatureCanvasRef = useRef(null);
@@ -163,10 +127,11 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Efek: Firebase Listener untuk Info Pameran
+  // Efek: Firebase Listener untuk Info Pameran & URL Script (OTOMATIS SINKRON KE HP PENGUNJUNG)
   useEffect(() => {
     if (db) {
-      const unsub = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
+      // 1. Mendengarkan perubahan Info Pameran
+      const unsubPameran = onSnapshot(doc(db, "pengaturan", "infoPameran"), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setEventConfig(data);
@@ -174,63 +139,26 @@ export default function App() {
           localStorage.setItem('imigrasi_event_config', JSON.stringify(data));
         }
       });
-      return () => unsub();
+
+      // 2. Mendengarkan perubahan URL Google Apps Script (Agar HP tamu otomatis tahu URL-nya)
+      const unsubIntegrasi = onSnapshot(doc(db, "pengaturan", "integrasi"), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.scriptUrl) {
+            setScriptUrl(data.scriptUrl);
+            localStorage.setItem('imigrasi_script_url', data.scriptUrl);
+          }
+        }
+      });
+
+      return () => {
+        unsubPameran();
+        unsubIntegrasi();
+      };
     }
   }, []);
 
   // --- [PENAMBAHAN KODE ANDA - PART 2.2] ---
-  // Efek Otomatis: Sinkronisasi data dari Spreadsheet saat Admin membuka halaman ini di PC mana saja
-  useEffect(() => {
-    const syncDataFromSheets = async () => {
-      // Hanya berjalan jika di mode Admin, URL GAS sudah diisi, dan sedang tidak dalam proses submit form
-      if (viewMode === 'admin' && scriptUrl && !isSubmitting) {
-        setIsSyncing(true);
-        showToast('Menyinkronkan data dari cloud Spreadsheet...', 'info');
-        
-        try {
-          // Melakukan request GET ke URL GAS (ini memicu fungsi doGet(e) di skrip GAS)
-          const response = await fetch(scriptUrl); 
-          const remoteGuestList = await response.json();
-          
-          if (Array.isArray(remoteGuestList)) {
-            // Ganti daftar tamu lokal (cache localStorage) dengan data asli terbaru dari Spreadsheet
-            setGuestList(remoteGuestList);
-            showToast(`Sinkronisasi sukses! ${remoteGuestList.length} data tamu dimuat dari server.`, 'success');
-          } else {
-            console.error("Format data respon GAS tidak valid:", remoteGuestList);
-            showToast('Gagal sinkronisasi data (Respon server tidak valid).', 'error');
-          }
-        } catch (err) {
-          console.error("Fetch Error saat sinkronisasi:", err);
-          showToast('Gagal terhubung ke cloud (Cek koneksi internet atau URL GAS Anda).', 'error');
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-
-    syncDataFromSheets();
-    // Dependency [viewMode, scriptUrl, isSubmitting] memastikan fetch jalan saat masuk mode admin atau URL diubah
-  }, [viewMode, scriptUrl, isSubmitting]); 
-  // --- [AKHIR PENAMBAHAN PART 2.2] ---
-
-  const showToast = (msg, type = 'info') => {
-    setToastMessage({ msg, type });
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleCopyCode = (text) => {
-    const el = document.createElement('textarea');
-    el.value = text;
-    document.body.appendChild(el);
-    el.select();
-    try {
-      document.execCommand('copy');
-      setCopiedCode(true);
-      showToast('Skrip Google Apps Script disalin!', 'success');
-      setTimeout(() => setCopiedCode(false), 2000);
-    } catch (err) {
-      showToast('Gagal menyalin kode', 'error');
     }
     document.body.removeChild(el);
   };
@@ -286,6 +214,21 @@ export default function App() {
       }
     } else {
       showToast('Info disimpan lokal.', 'success');
+    }
+  };
+
+  // --- Menyimpan URL Script ke Firebase Cloud (Agar semua HP Pengunjung tahu URL-nya) ---
+  const handleSaveScriptUrl = async () => {
+    localStorage.setItem('imigrasi_script_url', scriptUrl);
+    if (db) {
+      try {
+        await setDoc(doc(db, "pengaturan", "integrasi"), { scriptUrl: scriptUrl });
+        showToast('URL Google Drive berhasil disinkronisasi ke Cloud (Semua HP tamu siap)!', 'success');
+      } catch (err) {
+        showToast('URL disimpan lokal (Gagal ke Cloud).', 'info');
+      }
+    } else {
+      showToast('URL disimpan lokal.', 'success');
     }
   };
 
@@ -549,54 +492,101 @@ export default function App() {
       g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // KODE GOOGLE APPS SCRIPT YANG SUDAH DIPERBARUI SESUAI DATA LENGKAP
-  const gasSampleCode = `function doPost(e) {
+  // Fungsi untuk menarik data manual dari Spreadsheet
+  const handleRefreshSync = async () => {
+    if (!scriptUrl) {
+      showToast('Simpan URL Google Apps Script di tab Google Drive terlebih dahulu.', 'error');
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const response = await fetch(scriptUrl);
+      const remoteGuestList = await response.json();
+      if (Array.isArray(remoteGuestList)) {
+        setGuestList(remoteGuestList);
+        showToast(`Berhasil ditarik! ${remoteGuestList.length} tamu sinkron.`, 'success');
+      }
+    } catch (err) {
+      showToast('Gagal menarik data. Cek koneksi / URL Google Drive.', 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // KODE GOOGLE APPS SCRIPT YANG SUDAH DIPERBARUI (doGet & doPost)
+  const gasSampleCode = `function doGet(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    var lastRow = sheet.getLastRow();
+    var lastColumn = sheet.getLastColumn();
+    
+    if (lastRow < 2) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+    
+    var dataRange = sheet.getRange(2, 1, lastRow - 1, lastColumn);
+    var values = dataRange.getValues();
+    var guestList = [];
+    
+    for (var i = 0; i < values.length; i++) {
+      var row = values[i];
+      var jsDate = new Date(row[0]); 
+      var hariTanggal = Utilities.formatDate(jsDate, Session.getScriptTimeZone(), "EEEE, d MMMM yyyy");
+      
+      guestList.push({
+        hariTanggal: hariTanggal,
+        jamKunjungan: row[2], 
+        nama: row[5],         
+        alamat: row[6],       
+        whatsapp: row[7].toString(), 
+        layanan: row[8],      
+        ipAddress: row[9],    
+        photo: row[10],       
+        signature: row[11],   
+        driveStatus: 'Tersimpan di Cloud'
+      });
+    }
+    
+    guestList.reverse(); // Urutkan tamu terbaru di atas
+    return ContentService.createTextOutput(JSON.stringify(guestList)).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getActiveSheet();
     
-    // Membuat Header Otomatis jika sheet masih kosong
+    // Auto-create Header
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        "ID Tamu", "Tanggal", "Jam", "Nama Pameran", "Lokasi", 
-        "Nama Lengkap", "Alamat / Instansi", "WhatsApp", "Keperluan", 
-        "Alamat IP", "Link Foto Selfie", "Link Tanda Tangan"
-      ]);
+      sheet.appendRow(["Timestamp", "ID Tamu", "Jam", "Nama Pameran", "Lokasi", "Nama Lengkap", "Alamat", "WhatsApp", "Keperluan", "IP", "Link Foto", "Link TTD"]);
       sheet.getRange("A1:L1").setBackground("#003B73").setFontColor("#FFFFFF").setFontWeight("bold");
       sheet.setFrozenRows(1);
     }
     
-    // Manajemen Folder Google Drive
     var folderName = "Buku_Tamu_Imigrasi_Kediri";
     var folders = DriveApp.getFoldersByName(folderName);
     var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
     
-    // Proses Simpan Foto Selfie
     var photoBlob = Utilities.newBlob(Utilities.base64Decode(data.photoBase64.split(",")[1]), "image/jpeg", "FOTO_" + data.nama.replace(/[^a-zA-Z0-9]/g, '_') + "_" + data.id + ".jpg");
     var photoFile = folder.createFile(photoBlob);
     photoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     
-    // Proses Simpan Tanda Tangan
     var signBlob = Utilities.newBlob(Utilities.base64Decode(data.signatureBase64.split(",")[1]), "image/png", "TTD_" + data.nama.replace(/[^a-zA-Z0-9]/g, '_') + "_" + data.id + ".png");
     var signFile = folder.createFile(signBlob);
     signFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     
-    // Menambahkan Baris ke Spreadsheet
-    sheet.appendRow([
-      data.id, data.tanggal, data.jam, data.eventName, data.eventLocation,
-      data.nama, data.alamat, "'" + data.whatsapp, data.keperluan,
-      data.ipAddress, photoFile.getUrl(), signFile.getUrl()
-    ]);
+    sheet.appendRow([new Date(), data.id, data.jam, data.eventName, data.eventLocation, data.nama, data.alamat, "'" + data.whatsapp, data.keperluan, data.ipAddress, photoFile.getUrl(), signFile.getUrl()]);
     
-    return ContentService.createTextOutput(JSON.stringify({
-      status: "success", message: "Data tersimpan utuh"
-    })).setMimeType(ContentService.MimeType.JSON);
-    
+    return ContentService.createTextOutput(JSON.stringify({status: "success", message: "Tersimpan"})).setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
-      status: "error", message: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({status: "error", message: error.toString()})).setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
   }
 }`;
 
@@ -741,7 +731,7 @@ export default function App() {
                 </div>
 
                 {/* Tanda Tangan */}
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-3",
+                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><PenTool className="w-3.5 h-3.5 text-[#007AFF]" /> Tanda Tangan <span className="text-rose-500">*</span></h3>
                     <button type="button" onClick={clearSignature} className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition"><Trash2 className="w-3 h-3" /> Hapus</button>
@@ -788,13 +778,8 @@ export default function App() {
                     <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2">
                       <List className="w-4 h-4 text-[#007AFF]" />
                       Rekapitulasi Pengunjung ({guestList.length})
-                      {/* --- [PENAMBAHAN KODE ANDA - PART 3.1] --- */}
-                      {isSyncing && <RefreshCw className="w-4 h-4 animate-spin text-[#007AFF]" />}
-                      {/* --- [AKHIR PENAMBAHAN PART 3.1] --- */}
                     </h2>
-                    {/* --- [PENAMBAHAN KODE ANDA - PART 3.2] --- */}
-                    <p className="text-xs text-slate-500 font-medium">Data sinkron otomatis dengan Google Spreadsheet Cloud</p>
-                    {/* --- [AKHIR PENAMBAHAN PART 3.2] --- */}
+                    <p className="text-xs text-slate-500 font-medium">Data kehadiran tercatat pada perangkat ini</p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
@@ -810,10 +795,18 @@ export default function App() {
                     </div>
 
                     <button
+                      onClick={handleRefreshSync}
+                      disabled={isSyncing}
+                      className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data
+                    </button>
+
+                    <button
                       onClick={() => {
                         const csvContent = 'data:text/csv;charset=utf-8,' +
-                          ['ID,Tanggal,Jam,IP,Nama,Alamat,WhatsApp,Keperluan'].join(',') + '\n' +
-                          guestList.map(g => `"${g.id}","${g.hariTanggal}","${g.jamKunjungan}","${g.ipAddress}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}"`).join('\n');
+                          ['ID,Tanggal,Jam,Nama Pameran,Lokasi,IP,Nama,Alamat,WhatsApp,Keperluan'].join(',') + '\n' +
+                          guestList.map(g => `"${g.id}","${g.hariTanggal}","${g.jamKunjungan}","${g.namaKegiatan}","${g.lokasi}","${g.ipAddress}","${g.nama}","${g.alamat}","'${g.whatsapp}","${g.layanan}"`).join('\n');
                         const encodedUri = encodeURI(csvContent);
                         const link = document.createElement('a');
                         link.setAttribute('href', encodedUri);
@@ -850,9 +843,7 @@ export default function App() {
                       <div key={guest.id} className="bg-white/90 border border-white/80 rounded-2xl p-4 flex gap-3.5 items-center hover:shadow-sm transition-all relative overflow-hidden">
                         <div className={`absolute top-0 right-0 w-1.5 h-full ${guest.driveStatus.includes('Gagal') ? 'bg-rose-400' : 'bg-emerald-400'}`} title={guest.driveStatus} />
                         <div onClick={() => setPreviewItem(guest)} className="w-16 h-16 rounded-2xl overflow-hidden bg-[#F2F2F7] border border-slate-200 flex-shrink-0 cursor-pointer">
-                          {/* --- [PENAMBAHAN KODE ANDA - PART 3.3] --- */}
-                          <img src={resolveImageSrc(guest.photo)} alt={guest.nama} className="w-full h-full object-cover" />
-                          {/* --- [AKHIR PENAMBAHAN PART 3.3] --- */}
+                          <img src={guest.photo} alt={guest.nama} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0 space-y-1 text-xs">
                           <div className="flex items-center justify-between">
@@ -908,7 +899,7 @@ export default function App() {
                   <label className="text-xs font-semibold text-slate-700">Google Apps Script Web App URL</label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input type="url" placeholder="https://script.google.com/macros/s/.../exec" value={scriptUrl} onChange={(e) => setScriptUrl(e.target.value)} className="flex-1 px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] placeholder-slate-400 text-xs font-mono focus:bg-white focus:border-[#007AFF] outline-none transition" />
-                    <button type="button" onClick={() => showToast('URL Webhook Google Drive disimpan!', 'success')} className="px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] transition text-white font-semibold rounded-2xl text-xs">Simpan URL</button>
+                    <button type="button" onClick={handleSaveScriptUrl} className="px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] transition text-white font-semibold rounded-2xl text-xs">Simpan URL</button>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -988,17 +979,13 @@ export default function App() {
               <div>
                 <label className="text-[11px] text-slate-400 font-semibold uppercase">Foto (Compressed)</label>
                 <div className="mt-1 aspect-video bg-[#F2F2F7] rounded-2xl overflow-hidden border border-slate-200">
-                  {/* --- [PENAMBAHAN KODE ANDA - PART 3.5] --- */}
-                  <img src={resolveImageSrc(previewItem.photo)} alt="Foto" className="w-full h-full object-cover" />
-                  {/* --- [AKHIR PENAMBAHAN PART 3.5] --- */}
+                  <img src={previewItem.photo} alt="Foto" className="w-full h-full object-cover" />
                 </div>
               </div>
               <div>
                 <label className="text-[11px] text-slate-400 font-semibold uppercase">Tanda Tangan</label>
                 <div className="mt-1 aspect-video bg-white rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner">
-                  {/* --- [PENAMBAHAN KODE ANDA - PART 3.6] --- */}
-                  <img src={resolveImageSrc(previewItem.signature)} alt="TTD" className="max-h-full max-w-full object-contain" />
-                  {/* --- [AKHIR PENAMBAHAN PART 3.6] --- */}
+                  <img src={previewItem.signature} alt="TTD" className="max-h-full max-w-full object-contain" />
                 </div>
               </div>
             </div>
@@ -1006,7 +993,7 @@ export default function App() {
             <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Status Data:</span><span className={`font-semibold ${previewItem.driveStatus.includes('Gagal') ? 'text-rose-600' : 'text-emerald-600'}`}>{previewItem.driveStatus}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Waktu Kunjungan:</span><span className="font-semibold text-[#007AFF]">{previewItem.jamKunjungan}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Pameran:</span><span className="font-medium text-[#1C1C1E] text-right">{previewItem.hariTanggal}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Pameran:</span><span className="font-medium text-[#1C1C1E] text-right">{previewItem.namaKegiatan}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-[#1C1C1E] text-sm text-right">{previewItem.nama}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Instansi:</span><span className="text-slate-700 font-medium text-right">{previewItem.alamat}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">WhatsApp:</span><span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span></div>
