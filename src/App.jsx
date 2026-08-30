@@ -4,7 +4,7 @@ import {
   Settings, List, Image as ImageIcon, Copy, Check, Trash2, HelpCircle,
   X, AlertCircle, Download, FolderOpen, Lock, Unlock, ShieldCheck,
   Clock, Calendar, Search, Info, LogOut, ChevronRight, ChevronDown,
-  Edit3, Save, ArrowLeft, Trash
+  Edit3, Save, ArrowLeft, Trash, Printer
 } from 'lucide-react';
 
 // 1. IMPORT FIREBASE
@@ -93,7 +93,7 @@ export default function App() {
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
 
-  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU ⚠️
+  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec")
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -278,64 +278,94 @@ export default function App() {
     } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
   };
 
-  // --- FUNGSI UNDUH LAPORAN EXCEL ---
-  const handleDownloadExcel = () => {
-    const tableHTML = `
-      <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+  // --- FUNGSI CETAK LAPORAN PDF (EDITABLE & GAMBAR UTUH) ---
+  const handleDownloadPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Pop-up diblokir browser. Izinkan pop-up untuk mencetak laporan PDF.', 'error');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
       <head>
         <meta charset="utf-8">
+        <title>Laporan Rekapitulasi Pengunjung - Imigrasi Kediri</title>
         <style>
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid black; padding: 5px; font-family: Arial, sans-serif; font-size: 11pt; vertical-align: middle; }
-          .title { text-align: center; font-size: 16pt; font-weight: bold; border: none; }
-          .subtitle { text-align: center; font-size: 14pt; font-weight: bold; border: none; }
-          .header { background-color: #003B73; color: white; font-weight: bold; text-align: center; }
+          body { font-family: Arial, sans-serif; color: #1c1c1e; margin: 15px; background: #ffffff; }
+          .header-report { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #003B73; padding-bottom: 15px; }
+          .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: #003B73; letter-spacing: 1px; }
+          .header-report h3 { margin: 6px 0; font-size: 13pt; font-weight: bold; color: #1c1c1e; text-transform: uppercase; }
+          .header-report p { margin: 3px 0; font-size: 10pt; color: #555; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+          th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
+          th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
+          .img-thumbnail { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; margin: 0 auto; }
+          .sign-thumbnail { width: 60px; height: 30px; object-fit: contain; background: #fff; border: 1px solid #e2e8f0; display: block; margin: 0 auto; }
+          @media print {
+            body { margin: 0; }
+            button { display: none; }
+          }
         </style>
       </head>
       <body>
+        <div class="header-report">
+          <h2>DAFTAR PENGUNJUNG</h2>
+          <h3>STAND KANTOR IMIGRASI KEDIRI</h3>
+          <p><b>${eventConfig.namaKegiatan}</b> &bull; ${eventConfig.lokasi}</p>
+          <p style="font-size: 8.5pt; color: #666; margin-top: 5px;">Waktu Cetak Laporan: ${new Date().toLocaleString('id-ID')}</p>
+        </div>
         <table>
-          <tr><td colspan="10" class="title">DAFTAR PENGUNJUNG</td></tr>
-          <tr><td colspan="10" class="subtitle">STAND KANTOR IMIGRASI KEDIRI</td></tr>
-          <tr><td colspan="10" style="border:none;"></td></tr>
-          <tr>
-            <th class="header">Nomor</th>
-            <th class="header">Hari/Tanggal</th>
-            <th class="header">Nama</th>
-            <th class="header">Alamat</th>
-            <th class="header">Nomor HP/WA</th>
-            <th class="header">Keperluan</th>
-            <th class="header">Kesan/Pesan</th>
-            <th class="header">Titik Koordinat</th>
-            <th class="header">Foto</th>
-            <th class="header">Tanda Tangan</th>
-          </tr>
-          ${guestList.map((g, idx) => `
+          <thead>
             <tr>
-              <td class="center">${idx + 1}</td>
-              <td>${g.hariTanggal}</td>
-              <td>${g.nama}</td>
-              <td>${g.alamat}</td>
-              <td style="mso-number-format:'\\@'">${g.whatsapp}</td>
-              <td>${g.layanan}</td>
-              <td>${g.kesan || '-'}</td>
-              <td>${g.gps && g.gps !== 'Meminta akses lokasi...' ? `<a href="https://maps.google.com/?q=${g.gps}">${g.gps}</a>` : '-'}</td>
-              <td class="center">${g.photo && g.photo.startsWith('http') ? `<a href="${g.photo}">Lihat Foto</a>` : 'Lokal'}</td>
-              <td class="center">${g.signature && g.signature.startsWith('http') ? `<a href="${g.signature}">Lihat TTD</a>` : 'Lokal'}</td>
+              <th style="width: 35px;">No</th>
+              <th style="width: 85px;">Hari/Tanggal</th>
+              <th style="width: 100px;">Nama</th>
+              <th style="width: 100px;">Alamat</th>
+              <th style="width: 85px;">No HP/WA</th>
+              <th style="width: 90px;">Keperluan</th>
+              <th style="width: 90px;">Kesan/Pesan</th>
+              <th style="width: 85px;">Titik Koordinat</th>
+              <th style="width: 55px;">Foto</th>
+              <th style="width: 65px;">Tanda Tangan</th>
             </tr>
-          `).join('')}
+          </thead>
+          <tbody>
+            ${guestList.map((g, idx) => `
+              <tr>
+                <td class="center"><b>${idx + 1}</b></td>
+                <td style="font-size: 8pt;">${g.hariTanggal || '-'}</td>
+                <td><b>${g.nama}</b></td>
+                <td>${g.alamat}</td>
+                <td style="font-family: monospace;">${g.whatsapp}</td>
+                <td>${g.layanan}</td>
+                <td style="font-style: italic; color: #444;">${g.kesan || '-'}</td>
+                <td style="font-size: 7.5pt; font-family: monospace;">${g.gps || '-'}</td>
+                <td class="center">
+                  ${g.photo ? `<img src="${resolveImageSrc(g.photo)}" class="img-thumbnail" />` : '-'}
+                </td>
+                <td class="center">
+                  ${g.signature ? `<img src="${resolveImageSrc(g.signature)}" class="sign-thumbnail" />` : '-'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
         </table>
+        <script>
+          window.onload = function() {
+            setTimeout(() => {
+              window.print();
+            }, 500);
+          };
+        </script>
       </body>
       </html>
     `;
 
-    const blob = new Blob([tableHTML], { type: 'application/vnd.ms-excel' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Laporan_Pengunjung_${new Date().toISOString().slice(0, 10)}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const filteredGuests = guestList.filter((g) =>
@@ -541,9 +571,9 @@ export default function App() {
                     </div>
                     <button onClick={handleRefreshSync} disabled={isSyncing} className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
                     
-                    {/* TOMBOL LAPORAN EXCEL */}
-                    <button onClick={handleDownloadExcel} disabled={guestList.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
-                      <Download className="w-3.5 h-3.5" /> Laporan
+                    {/* TOMBOL LAPORAN PDF */}
+                    <button onClick={handleDownloadPDF} disabled={guestList.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                      <Printer className="w-3.5 h-3.5" /> Laporan PDF
                     </button>
                   </div>
                 </div>
@@ -620,9 +650,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ========================================================= */}
-      {/* MODAL SUCCESS - REVISI TOMBOL "TUTUP"                       */}
-      {/* ========================================================= */}
       {showSuccessModal && lastSubmittedGuest && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
