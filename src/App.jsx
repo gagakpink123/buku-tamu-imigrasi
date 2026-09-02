@@ -312,10 +312,8 @@ export default function App() {
       </head>
       <body>
         <div class="header-report">
-          <h2>DAFTAR PENGUNJUNG</h2>
-          <h3>STAND KANTOR IMIGRASI KEDIRI</h3>
-          <p><b>${eventConfig.namaKegiatan}</b> &bull; ${eventConfig.lokasi}</p>
-          <p style="font-size: 8.5pt; color: #666; margin-top: 5px;">Waktu Cetak Laporan: ${new Date().toLocaleString('id-ID')}</p>
+          <h3>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h3>
+          <p><b>${eventConfig.namaKegiatan} &mdash; ${eventConfig.lokasi}</b></p>        
         </div>
         <table>
           <thead>
