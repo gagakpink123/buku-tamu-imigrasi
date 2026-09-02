@@ -46,6 +46,29 @@ const resolveImageSrc = (imageData) => {
   return imageData;
 };
 
+// ==========================================
+// FUNGSI PAKSA BAHASA INDONESIA 100%
+// ==========================================
+const formatTanggalIndo = (dateObj) => {
+  const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  return `${hari[dateObj.getDay()]}, ${dateObj.getDate()} ${bulan[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+};
+
+// Fungsi untuk menerjemahkan data lama yang terlanjur berbahasa Inggris
+const translateDateToIndo = (dateStr) => {
+  if (!dateStr) return '-';
+  let res = dateStr;
+  const dict = {
+    'Sunday': 'Minggu', 'Monday': 'Senin', 'Tuesday': 'Selasa', 'Wednesday': 'Rabu', 'Thursday': 'Kamis', 'Friday': 'Jumat', 'Saturday': 'Sabtu',
+    'January': 'Januari', 'February': 'Februari', 'March': 'Maret', 'April': 'April', 'May': 'Mei', 'June': 'Juni', 'July': 'Juli', 'August': 'Agustus', 'September': 'September', 'October': 'Oktober', 'November': 'November', 'December': 'Desember'
+  };
+  for (const [en, id] of Object.entries(dict)) {
+    res = res.replace(new RegExp(en, 'gi'), id);
+  }
+  return res;
+};
+
 // --- LOGO ---
 function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
   return (
@@ -92,10 +115,10 @@ export default function App() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
- 
-// ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec")
- 
+
+// ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU ⚠️
+  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec");
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSubmittedGuest, setLastSubmittedGuest] = useState(null);
@@ -230,8 +253,8 @@ export default function App() {
 
     setIsSubmitting(true);
     const now = new Date();
-    // PAKSA MENGGUNAKAN LOKAL id-ID (BAHASA INDONESIA)
-    const formattedDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // MENGGUNAKAN FUNGSI MANUAL UNTUK MEMASTIKAN 100% BAHASA INDONESIA
+    const formattedDate = formatTanggalIndo(now);
     const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
     const finalKeperluan = formData.layanan === 'Lainnya' ? formData.layananLainnya : formData.layanan;
     const uniqueId = 'KDR-' + Date.now().toString().slice(-6);
@@ -260,14 +283,12 @@ export default function App() {
     setGuestList((prev) => [newGuest, ...prev]); setLastSubmittedGuest(newGuest); setShowSuccessModal(true); setIsSubmitting(false);
   };
   
-  // Fungsi untuk menutup modal sukses dan mereset form
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
     setPhotoData(null); 
     setSignatureData(null); 
     clearSignature();
-    // Memaksa halaman form di-refresh/scroll ke atas dengan lembut
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast('Formulir siap untuk pengunjung baru', 'info');
   };
@@ -293,24 +314,20 @@ export default function App() {
   const getEventDateRange = () => {
     if (guestList.length === 0) return "-";
     
-    // Mengekstrak semua hariTanggal
-    const dates = guestList.map(g => g.hariTanggal).filter(Boolean);
+    // Menerjemahkan juga untuk rentang tanggal
+    const dates = guestList.map(g => translateDateToIndo(g.hariTanggal)).filter(Boolean);
     if (dates.length === 0) return "-";
     
-    // Menghapus duplikat
     const uniqueDates = [...new Set(dates)];
     
-    // Jika hanya 1 tanggal
     if (uniqueDates.length === 1) return uniqueDates[0];
     
-    // Jika lebih dari 1, tampilkan tanggal awal dan akhir (Asumsi data sudah terurut dari yang terbaru ke terlama di state)
-    // Guest list di state disisipkan dengan unshift/ [newGuest, ...prev] jadi index 0 adalah terbaru (Max), index terakhir adalah terlama (Min)
     const oldestDate = uniqueDates[uniqueDates.length - 1];
     const newestDate = uniqueDates[0];
     return `${oldestDate} - ${newestDate}`;
   };
 
-  // --- FUNGSI CETAK LAPORAN PDF (EDITABLE & GAMBAR UTUH - NO STRETCH NO CROP) ---
+  // --- FUNGSI CETAK LAPORAN PDF ---
   const handleDownloadPDF = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -335,7 +352,6 @@ export default function App() {
           th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
           th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
-          /* Mencegah crop dan stretch pada gambar */
           .img-thumbnail { width: 45px; height: 50px; object-fit: contain; display: block; margin: 0 auto; background-color: #f8fafc; }
           .sign-thumbnail { width: 65px; height: 35px; object-fit: contain; display: block; margin: 0 auto; background-color: #fff; }
           @media print {
@@ -369,7 +385,8 @@ export default function App() {
             ${guestList.map((g, idx) => `
               <tr>
                 <td class="center"><b>${idx + 1}</b></td>
-                <td style="font-size: 8pt;">${g.hariTanggal || '-'}</td>
+                <!-- Menerjemahkan data lama (jika ada) ke Bahasa Indonesia -->
+                <td style="font-size: 8pt;">${translateDateToIndo(g.hariTanggal)}</td>
                 <td><b>${g.nama}</b></td>
                 <td>${g.alamat}</td>
                 <td style="font-family: monospace;">${g.whatsapp}</td>
@@ -417,13 +434,9 @@ export default function App() {
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
-        {/* ========================================================= */}
-        {/* HEADER SECTION - REVISI DESAIN RAPI, BERSIH, PROFESIONAL  */}
-        {/* ========================================================= */}
         <div className="bg-gradient-to-br from-[#003B73] via-[#004B93] to-[#001B36] rounded-3xl p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,59,115,0.25)] text-white relative overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             
-            {/* Logo & Judul */}
             <div className="flex items-center gap-5 sm:gap-7">
               <div className="flex-shrink-0 bg-white/10 p-3 sm:p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
                 <ImmigrationLogo className="w-14 h-16 sm:w-16 sm:h-20" />
@@ -444,7 +457,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Jam & Tombol Admin */}
             <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-white/15">
               <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/20 backdrop-blur-md text-xs font-mono font-medium text-amber-300 border border-white/10">
                 <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
@@ -468,15 +480,14 @@ export default function App() {
           </div>
         </div>
 
-        {/* TAMPILAN 1: FORMULIR UTAMA */}
         {viewMode === 'form' && (
           <div className="space-y-5 animate-in fade-in duration-300">
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-sm text-center space-y-1.5">
               <h2 className="text-lg sm:text-xl font-extrabold text-[#1C1C1E] tracking-tight">DAFTAR KEHADIRAN PENGUNJUNG</h2>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#F2F2F7] rounded-full text-xs text-slate-700 font-medium">
                 <Calendar className="w-3.5 h-3.5 text-[#007AFF]" />
-                {/* LOKAL BAHASA INDONESIA UNTUK TANGGAL HARI INI */}
-                <span><strong>Hari/Tanggal:</strong> {currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                {/* Menggunakan fungsi manual di form juga */}
+                <span><strong>Hari/Tanggal:</strong> {formatTanggalIndo(currentTime)}</span>
               </div>
             </div>
 
@@ -486,7 +497,6 @@ export default function App() {
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[#007AFF]" /> Informasi Pengunjung</h3>
                 </div>
                 
-                {/* AUTO KAPITAL: NAMA & ALAMAT */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nama Lengkap <span className="text-rose-500">*</span></label>
                   <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
@@ -519,7 +529,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* LABEL KESAN / PESAN (OPSIONAL) */}
                 <div className="space-y-1.5 pt-2">
                   <label className="text-xs font-semibold text-slate-700">Kesan/Pesan <span className="text-slate-400 font-normal">(Opsional)</span></label>
                   <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition resize-none h-20" />
@@ -577,7 +586,6 @@ export default function App() {
           </div>
         )}
 
-        {/* TAMPILAN 2: HALAMAN ADMIN */}
         {viewMode === 'admin' && (
           <div className="space-y-5 animate-in fade-in duration-300">
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
@@ -605,7 +613,6 @@ export default function App() {
                     </div>
                     <button onClick={handleRefreshSync} disabled={isSyncing} className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
                     
-                    {/* TOMBOL LAPORAN PDF */}
                     <button onClick={handleDownloadPDF} disabled={guestList.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
                       <Printer className="w-3.5 h-3.5" /> Laporan PDF
                     </button>
@@ -629,7 +636,8 @@ export default function App() {
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2"><h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4><span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-[#007AFF] font-semibold">{guest.layanan}</span></div>
                             <p className="text-xs text-slate-500 font-medium">{guest.alamat} • WhatsApp: <span className="font-mono">{guest.whatsapp}</span></p>
-                            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {guest.hariTanggal || '-'} • {guest.jamKunjungan}</p>
+                            {/* Menerjemahkan data di list admin */}
+                            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {translateDateToIndo(guest.hariTanggal)} • {guest.jamKunjungan}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
@@ -716,7 +724,7 @@ export default function App() {
             
             <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Status Data:</span><span className={`font-semibold ${previewItem.driveStatus && previewItem.driveStatus.includes('Gagal') ? 'text-rose-600' : 'text-emerald-600'}`}>{previewItem.driveStatus || 'Tersimpan'}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className="font-semibold text-[#007AFF] text-right">{previewItem.hariTanggal || '-'} • {previewItem.jamKunjungan}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className="font-semibold text-[#007AFF] text-right">{translateDateToIndo(previewItem.hariTanggal)} • {previewItem.jamKunjungan}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-[#1C1C1E] text-sm text-right">{previewItem.nama}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Instansi:</span><span className="text-slate-700 font-medium text-right">{previewItem.alamat}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">WhatsApp:</span><span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span></div>
