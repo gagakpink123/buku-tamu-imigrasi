@@ -92,10 +92,10 @@ export default function App() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
-
-  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
+ 
+// ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec")
-  
+ 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [lastSubmittedGuest, setLastSubmittedGuest] = useState(null);
@@ -230,13 +230,14 @@ export default function App() {
 
     setIsSubmitting(true);
     const now = new Date();
+    // PAKSA MENGGUNAKAN LOKAL id-ID (BAHASA INDONESIA)
     const formattedDate = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const formattedTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB';
     const finalKeperluan = formData.layanan === 'Lainnya' ? formData.layananLainnya : formData.layanan;
     const uniqueId = 'KDR-' + Date.now().toString().slice(-6);
 
     const newGuest = {
-      id: uniqueId, hariTanggal: formattedDate, jamKunjungan: formattedTime,
+      id: uniqueId, hariTanggal: formattedDate, jamKunjungan: formattedTime, timestampMs: now.getTime(),
       namaKegiatan: eventConfig.namaKegiatan, lokasi: eventConfig.lokasi,
       ipAddress: userIpAddress, gps: gpsLocation, ...formData,
       kesan: formData.kesan || '-', layanan: finalKeperluan,
@@ -257,8 +258,18 @@ export default function App() {
     }
 
     setGuestList((prev) => [newGuest, ...prev]); setLastSubmittedGuest(newGuest); setShowSuccessModal(true); setIsSubmitting(false);
+  };
+  
+  // Fungsi untuk menutup modal sukses dan mereset form
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
-    setPhotoData(null); setSignatureData(null); stopCamera(); clearSignature();
+    setPhotoData(null); 
+    setSignatureData(null); 
+    clearSignature();
+    // Memaksa halaman form di-refresh/scroll ke atas dengan lembut
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Formulir siap untuk pengunjung baru', 'info');
   };
 
   const handleDeleteSingleGuest = async (guestId) => {
@@ -278,7 +289,28 @@ export default function App() {
     } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
   };
 
-  // --- FUNGSI CETAK LAPORAN PDF (EDITABLE & GAMBAR UTUH) ---
+  // --- MENGAMBIL RENTANG TANGGAL DINAMIS UNTUK PDF ---
+  const getEventDateRange = () => {
+    if (guestList.length === 0) return "-";
+    
+    // Mengekstrak semua hariTanggal
+    const dates = guestList.map(g => g.hariTanggal).filter(Boolean);
+    if (dates.length === 0) return "-";
+    
+    // Menghapus duplikat
+    const uniqueDates = [...new Set(dates)];
+    
+    // Jika hanya 1 tanggal
+    if (uniqueDates.length === 1) return uniqueDates[0];
+    
+    // Jika lebih dari 1, tampilkan tanggal awal dan akhir (Asumsi data sudah terurut dari yang terbaru ke terlama di state)
+    // Guest list di state disisipkan dengan unshift/ [newGuest, ...prev] jadi index 0 adalah terbaru (Max), index terakhir adalah terlama (Min)
+    const oldestDate = uniqueDates[uniqueDates.length - 1];
+    const newestDate = uniqueDates[0];
+    return `${oldestDate} - ${newestDate}`;
+  };
+
+  // --- FUNGSI CETAK LAPORAN PDF (EDITABLE & GAMBAR UTUH - NO STRETCH NO CROP) ---
   const handleDownloadPDF = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -286,24 +318,26 @@ export default function App() {
       return;
     }
 
+    const dateRangeStr = getEventDateRange();
+
     const htmlContent = `
       <!DOCTYPE html>
-      <html>
+      <html lang="id">
       <head>
         <meta charset="utf-8">
-        <title>Laporan Rekapitulasi Pengunjung - Imigrasi Kediri</title>
+        <title>Laporan Daftar Pengunjung - Imigrasi Kediri</title>
         <style>
           body { font-family: Arial, sans-serif; color: #1c1c1e; margin: 15px; background: #ffffff; }
           .header-report { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #003B73; padding-bottom: 15px; }
-          .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: #003B73; letter-spacing: 1px; }
-          .header-report h3 { margin: 6px 0; font-size: 13pt; font-weight: bold; color: #1c1c1e; text-transform: uppercase; }
-          .header-report p { margin: 3px 0; font-size: 10pt; color: #555; }
+          .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: #003B73; letter-spacing: 0.5px; }
+          .header-report p { margin: 4px 0; font-size: 10.5pt; color: #333; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
           th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
           th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
-          .img-thumbnail { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; margin: 0 auto; }
-          .sign-thumbnail { width: 60px; height: 30px; object-fit: contain; background: #fff; border: 1px solid #e2e8f0; display: block; margin: 0 auto; }
+          /* Mencegah crop dan stretch pada gambar */
+          .img-thumbnail { width: 45px; height: 50px; object-fit: contain; display: block; margin: 0 auto; background-color: #f8fafc; }
+          .sign-thumbnail { width: 65px; height: 35px; object-fit: contain; display: block; margin: 0 auto; background-color: #fff; }
           @media print {
             body { margin: 0; }
             button { display: none; }
@@ -312,8 +346,9 @@ export default function App() {
       </head>
       <body>
         <div class="header-report">
-          <h3>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h3>
-          <p><b>${eventConfig.namaKegiatan} &ndash; ${eventConfig.lokasi}</b></p>        
+          <h2>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h2>
+          <p><b>${eventConfig.namaKegiatan}</b> &bull; ${eventConfig.lokasi}</p>
+          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal Pelaksanaan: ${dateRangeStr}</p>
         </div>
         <table>
           <thead>
@@ -326,8 +361,8 @@ export default function App() {
               <th style="width: 90px;">Keperluan</th>
               <th style="width: 90px;">Kesan/Pesan</th>
               <th style="width: 85px;">Titik Koordinat</th>
-              <th style="width: 55px;">Foto</th>
-              <th style="width: 65px;">Tanda Tangan</th>
+              <th style="width: 60px;">Foto</th>
+              <th style="width: 75px;">Tanda Tangan</th>
             </tr>
           </thead>
           <tbody>
@@ -440,6 +475,7 @@ export default function App() {
               <h2 className="text-lg sm:text-xl font-extrabold text-[#1C1C1E] tracking-tight">DAFTAR KEHADIRAN PENGUNJUNG</h2>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#F2F2F7] rounded-full text-xs text-slate-700 font-medium">
                 <Calendar className="w-3.5 h-3.5 text-[#007AFF]" />
+                {/* LOKAL BAHASA INDONESIA UNTUK TANGGAL HARI INI */}
                 <span><strong>Hari/Tanggal:</strong> {currentTime.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
               </div>
             </div>
@@ -470,7 +506,7 @@ export default function App() {
                     <select value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className="w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none cursor-pointer pr-10">
                       <option value="Informasi Layanan Paspor">Informasi Layanan Paspor</option>
                       <option value="Informasi Layanan WNA">Informasi Layanan WNA</option>
-                      <option value="PASPORIA (Urus Paspor)">PASPORIA (Urus Paspor)</option>
+                      <option value="Kunjungan Silaturahmi">Kunjungan Silaturahmi</option>
                       <option value="Lainnya">Lainnya</option>
                     </select>
                     <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -657,7 +693,7 @@ export default function App() {
               <p className="text-sm text-slate-500 font-medium mt-1.5 mb-2">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
             </div>
             <button 
-              onClick={() => setShowSuccessModal(false)} 
+              onClick={handleCloseSuccessModal} 
               className="w-full py-3.5 mt-2 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-sm font-black tracking-widest transition shadow-[0_4px_16px_rgba(0,122,255,0.3)]"
             >
               TUTUP
