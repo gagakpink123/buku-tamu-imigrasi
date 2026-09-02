@@ -313,7 +313,7 @@ export default function App() {
       <body>
         <div class="header-report">
           <h3>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h3>
-          <p><b>${eventConfig.namaKegiatan} &mdash; ${eventConfig.lokasi}</b></p>        
+          <p><b>${eventConfig.namaKegiatan} &ndash; ${eventConfig.lokasi}</b></p>        
         </div>
         <table>
           <thead>
