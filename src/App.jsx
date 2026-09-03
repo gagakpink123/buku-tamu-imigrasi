@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Camera, RefreshCw, PenTool, User, MapPin, Phone, Send, CheckCircle2,
-  Settings, List, Image as ImageIcon, Copy, Check, Trash2, HelpCircle,
+  Settings, List, Copy, Check, Trash2, HelpCircle,
   X, AlertCircle, Download, FolderOpen, Lock, Unlock, ShieldCheck,
   Clock, Calendar, Search, Info, LogOut, ChevronRight, ChevronDown,
   Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink
@@ -116,7 +116,6 @@ export default function App() {
   const [cameraFacing, setCameraFacing] = useState('user');
   const [cameraError, setCameraError] = useState('');
 
-  // ⚠️ GANTI URL INI JIKA ADA DEPLOYMENT GOOGLE APPS SCRIPT BARU
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -239,11 +238,9 @@ export default function App() {
     if (cameraFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); } ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     setPhotoData(canvas.toDataURL('image/jpeg', 0.65)); stopCamera(); showToast('Foto ditangkap!', 'success');
   };
-  const handleFileUploadPhoto = (e) => {
-    const file = e.target.files[0];
-    if (file && file.size < 5000000) { const reader = new FileReader(); reader.onload = (ev) => { setPhotoData(ev.target.result); showToast('Foto dimuat!', 'success'); }; reader.readAsDataURL(file); } 
-    else { showToast('Ukuran foto terlalu besar', 'error'); }
-  };
+  
+  // Fungsi handleFileUploadPhoto telah dihapus karena opsi Galeri dihilangkan
+
   const initSignaturePad = () => {
     const canvas = signatureCanvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
@@ -265,7 +262,7 @@ export default function App() {
     if (!formData.alamat.trim()) { showToast('Masukkan Alamat / Instansi', 'error'); return; }
     if (!formData.whatsapp.trim()) { showToast('Masukkan Nomor WhatsApp', 'error'); return; }
     if (formData.layanan === 'Lainnya' && !formData.layananLainnya.trim()) { showToast('Sebutkan keperluan Anda secara spesifik', 'error'); return; }
-    if (!photoData) { showToast('Harap ambil foto pengunjung (Wajib)', 'error'); return; }
+    if (!photoData) { showToast('Harap jepret foto pengunjung menggunakan kamera (Wajib)', 'error'); return; }
     if (!signatureData) { showToast('Harap bubuhkan tanda tangan (Wajib)', 'error'); return; }
 
     setIsSubmitting(true);
@@ -299,7 +296,6 @@ export default function App() {
     setGuestList((prev) => [newGuest, ...prev]); setLastSubmittedGuest(newGuest); setShowSuccessModal(true); setIsSubmitting(false);
   };
   
-  // Aksi ketika tombol SURVEI diklik pada modal sukses
   const handleOpenSurvei = () => {
     setShowSuccessModal(false);
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
@@ -308,7 +304,6 @@ export default function App() {
     clearSignature();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Membuka link survei di tab yang sama (_self)
     const targetUrl = eventConfig.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie';
     window.location.href = targetUrl;
   };
@@ -350,6 +345,10 @@ export default function App() {
 
     const dateRangeStr = getEventDateRange();
 
+    // Membalik urutan array agar tamu TERLAMA berada di urutan PERTAMA
+    // karena state guestList menyusun dari yang terbaru (indeks 0) ke terlama (indeks terakhir)
+    const reversedGuestList = [...guestList].reverse();
+
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="id">
@@ -365,8 +364,12 @@ export default function App() {
           th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
           th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
-          .img-thumbnail { width: 45px; height: 50px; object-fit: contain; display: block; margin: 0 auto; background-color: #f8fafc; }
-          .sign-thumbnail { width: 65px; height: 35px; object-fit: contain; display: block; margin: 0 auto; background-color: #fff; }
+          
+          /* Container khusus untuk foto agar benar-benar fit ke sel, tidak terpotong (no crop) dan tidak melar (no stretch) */
+          .img-container { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; }
+          .img-thumbnail { width: 100%; height: 100%; object-fit: contain; display: block; }
+          
+          .sign-thumbnail { width: 100%; max-width: 70px; height: 35px; object-fit: contain; display: block; margin: 0 auto; background-color: #fff; }
           @media print {
             body { margin: 0; }
             button { display: none; }
@@ -376,29 +379,29 @@ export default function App() {
       <body>
         <div class="header-report">
           <h2>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h2>
-          <p><b>${eventConfig.namaKegiatan} - ${eventConfig.lokasi}</b></p>
-          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal : ${dateRangeStr}</p>
+          <p><b>${eventConfig.namaKegiatan}</b> &bull; ${eventConfig.lokasi}</p>
+          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal Pelaksanaan: ${dateRangeStr}</p>
         </div>
         <table>
           <thead>
             <tr>
-              <th style="width: 35px;">No</th>
+              <th style="width: 30px;">No</th>
               <th style="width: 85px;">Hari/Tanggal</th>
-              <th style="width: 100px;">Nama</th>
-              <th style="width: 100px;">Alamat</th>
+              <th style="width: 95px;">Nama</th>
+              <th style="width: 95px;">Alamat</th>
               <th style="width: 85px;">No HP/WA</th>
               <th style="width: 90px;">Keperluan</th>
               <th style="width: 90px;">Kesan/Pesan</th>
               <th style="width: 85px;">Titik Koordinat</th>
               <th style="width: 60px;">Foto</th>
-              <th style="width: 75px;">Tanda Tangan</th>
+              <th style="width: 70px;">TTD</th>
             </tr>
           </thead>
           <tbody>
-            ${guestList.map((g, idx) => `
+            ${reversedGuestList.map((g, idx) => `
               <tr>
                 <td class="center"><b>${idx + 1}</b></td>
-                <td style="font-size: 8pt;">${translateDateToIndo(g.hariTanggal)}</td>
+                <td style="font-size: 8pt;">${translateDateToIndo(g.hariTanggal)}<br/><span style="font-size: 7.5pt; color: #666;">${g.jamKunjungan}</span></td>
                 <td><b>${g.nama}</b></td>
                 <td>${g.alamat}</td>
                 <td style="font-family: monospace;">${g.whatsapp}</td>
@@ -406,7 +409,9 @@ export default function App() {
                 <td style="font-style: italic; color: #444;">${g.kesan || '-'}</td>
                 <td style="font-size: 7.5pt; font-family: monospace;">${g.gps || '-'}</td>
                 <td class="center">
-                  ${g.photo ? `<img src="${resolveImageSrc(g.photo)}" class="img-thumbnail" />` : '-'}
+                  <div class="img-container">
+                    ${g.photo ? `<img src="${resolveImageSrc(g.photo)}" class="img-thumbnail" />` : '-'}
+                  </div>
                 </td>
                 <td class="center">
                   ${g.signature ? `<img src="${resolveImageSrc(g.signature)}" class="sign-thumbnail" />` : '-'}
@@ -419,7 +424,7 @@ export default function App() {
           window.onload = function() {
             setTimeout(() => {
               window.print();
-            }, 500);
+            }, 600);
           };
         </script>
       </body>
@@ -524,7 +529,6 @@ export default function App() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Keperluan / Layanan Stand <span className="text-rose-500">*</span></label>
                   <div className="relative">
-                    {/* OPSI KUNJUNGAN SILATURAHMI DIGANTI MENJADI URUS PASPOR (PASPORIA) */}
                     <select value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className="w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none cursor-pointer pr-10">
                       <option value="Informasi Layanan Paspor">Informasi Layanan Paspor</option>
                       <option value="Informasi Layanan WNA">Informasi Layanan WNA</option>
@@ -565,10 +569,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     {!isCameraActive ? (
-                      <>
-                        <button type="button" onClick={startCamera} className="flex-1 py-2.5 px-4 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-sm"><Camera className="w-3.5 h-3.5" />{photoData ? 'Ambil Ulang' : 'Buka Kamera'}</button>
-                        <label className="cursor-pointer py-2.5 px-3.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-2xl text-xs font-semibold flex items-center gap-1.5 transition"><ImageIcon className="w-3.5 h-3.5" /><span>Galeri</span><input type="file" accept="image/*" onChange={handleFileUploadPhoto} className="hidden" /></label>
-                      </>
+                      <button type="button" onClick={startCamera} className="w-full py-2.5 px-4 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-sm"><Camera className="w-3.5 h-3.5" />{photoData ? 'Ambil Ulang (Kamera)' : 'Buka Kamera'}</button>
                     ) : (
                       <>
                         <button type="button" onClick={capturePhoto} className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition"><Check className="w-3.5 h-3.5" />Jepret Foto</button>
@@ -674,7 +675,6 @@ export default function App() {
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
                   
-                  {/* INPUT LINK SURVEI YANG ADJUSTABLE */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
                     <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
@@ -710,7 +710,6 @@ export default function App() {
         </div>
       )}
 
-      {/* POP-UP SUKSES DENGAN PESAN SURVEI DAN TOMBOL SURVEI */}
       {showSuccessModal && lastSubmittedGuest && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
