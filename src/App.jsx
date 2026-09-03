@@ -106,8 +106,9 @@ export default function App() {
   const [userIpAddress, setUserIpAddress] = useState('Memuat IP...');
   const [gpsLocation, setGpsLocation] = useState('Meminta akses lokasi...');
 
+  // State layanan diset kosong secara default
   const [formData, setFormData] = useState({
-    nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: ''
+    nama: '', alamat: '', whatsapp: '', layanan: '', layananLainnya: '', kesan: ''
   });
 
   const [photoData, setPhotoData] = useState(null);
@@ -239,8 +240,6 @@ export default function App() {
     setPhotoData(canvas.toDataURL('image/jpeg', 0.65)); stopCamera(); showToast('Foto ditangkap!', 'success');
   };
   
-  // Fungsi handleFileUploadPhoto telah dihapus karena opsi Galeri dihilangkan
-
   const initSignaturePad = () => {
     const canvas = signatureCanvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
@@ -261,6 +260,7 @@ export default function App() {
     if (!formData.nama.trim()) { showToast('Masukkan Nama Lengkap', 'error'); return; }
     if (!formData.alamat.trim()) { showToast('Masukkan Alamat / Instansi', 'error'); return; }
     if (!formData.whatsapp.trim()) { showToast('Masukkan Nomor WhatsApp', 'error'); return; }
+    if (!formData.layanan) { showToast('Silakan pilih Keperluan / Layanan Stand', 'error'); return; }
     if (formData.layanan === 'Lainnya' && !formData.layananLainnya.trim()) { showToast('Sebutkan keperluan Anda secara spesifik', 'error'); return; }
     if (!photoData) { showToast('Harap jepret foto pengunjung menggunakan kamera (Wajib)', 'error'); return; }
     if (!signatureData) { showToast('Harap bubuhkan tanda tangan (Wajib)', 'error'); return; }
@@ -298,7 +298,8 @@ export default function App() {
   
   const handleOpenSurvei = () => {
     setShowSuccessModal(false);
-    setFormData({ nama: '', alamat: '', whatsapp: '', layanan: 'Informasi Layanan Paspor', layananLainnya: '', kesan: '' });
+    // Reset kembali pilihan layanan menjadi kosong
+    setFormData({ nama: '', alamat: '', whatsapp: '', layanan: '', layananLainnya: '', kesan: '' });
     setPhotoData(null); 
     setSignatureData(null); 
     clearSignature();
@@ -345,8 +346,6 @@ export default function App() {
 
     const dateRangeStr = getEventDateRange();
 
-    // Membalik urutan array agar tamu TERLAMA berada di urutan PERTAMA
-    // karena state guestList menyusun dari yang terbaru (indeks 0) ke terlama (indeks terakhir)
     const reversedGuestList = [...guestList].reverse();
 
     const htmlContent = `
@@ -365,7 +364,6 @@ export default function App() {
           th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
           
-          /* Container khusus untuk foto agar benar-benar fit ke sel, tidak terpotong (no crop) dan tidak melar (no stretch) */
           .img-container { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; }
           .img-thumbnail { width: 100%; height: 100%; object-fit: contain; display: block; }
           
@@ -529,7 +527,9 @@ export default function App() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Keperluan / Layanan Stand <span className="text-rose-500">*</span></label>
                   <div className="relative">
-                    <select value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className="w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none cursor-pointer pr-10">
+                    {/* Atribut required dan opsi default kosong (disabled) agar user harus memilih */}
+                    <select required value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className="w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none cursor-pointer pr-10">
+                      <option value="" disabled hidden>-- Pilih Keperluan --</option>
                       <option value="Informasi Layanan Paspor">Informasi Layanan Paspor</option>
                       <option value="Informasi Layanan WNA">Informasi Layanan WNA</option>
                       <option value="Urus Paspor (PASPORIA)">Urus Paspor (PASPORIA)</option>
