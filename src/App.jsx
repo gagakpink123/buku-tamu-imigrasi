@@ -390,7 +390,7 @@ export default function App() {
               <th style="width: 85px;">No HP/WA</th>
               <th style="width: 90px;">Keperluan</th>
               <th style="width: 90px;">Kesan/Pesan</th>
-              <th style="width: 85px;">Titik Koordinat</th>
+              <th style="width: 85px;">Koordinat Lokasi</th>
               <th style="width: 60px;">Foto</th>
               <th style="width: 70px;">TTD</th>
             </tr>
