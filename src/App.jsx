@@ -377,8 +377,8 @@ export default function App() {
       <body>
         <div class="header-report">
           <h2>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h2>
-          <p><b>${eventConfig.namaKegiatan}</b> &bull; ${eventConfig.lokasi}</p>
-          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal Pelaksanaan: ${dateRangeStr}</p>
+          <p><b>${eventConfig.namaKegiatan} | Lokasi: ${eventConfig.lokasi}</b></p>
+          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal: ${dateRangeStr}</p>
         </div>
         <table>
           <thead>
