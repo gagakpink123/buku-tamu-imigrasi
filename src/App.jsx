@@ -33,15 +33,137 @@ try {
 }
 
 // ==========================================
-// KONFIGURASI TEMA APLIKASI
+// KONFIGURASI TEMA APLIKASI (PERPADUAN 2 WARNA MATCHING)
 // ==========================================
 const THEMES = {
-  'biru': { hex: '#003B73', gradient: 'from-[#003B73] via-[#004B93] to-[#001B36]', button: 'bg-[#007AFF] hover:bg-[#0062CC]', text: 'text-[#007AFF]', border: 'focus:border-[#007AFF]', lightBg: 'bg-blue-50/50', lightBorder: 'border-blue-200' },
-  'biru muda': { hex: '#0284C7', gradient: 'from-[#0284C7] via-[#0369A1] to-[#075985]', button: 'bg-[#0EA5E9] hover:bg-[#0284C7]', text: 'text-[#0EA5E9]', border: 'focus:border-[#0EA5E9]', lightBg: 'bg-sky-50/50', lightBorder: 'border-sky-200' },
-  'hijau': { hex: '#059669', gradient: 'from-[#064E3B] via-[#065F46] to-[#047857]', button: 'bg-[#10B981] hover:bg-[#059669]', text: 'text-[#10B981]', border: 'focus:border-[#10B981]', lightBg: 'bg-emerald-50/50', lightBorder: 'border-emerald-200' },
-  'turquoise': { hex: '#0D9488', gradient: 'from-[#115E59] via-[#0F766E] to-[#0D9488]', button: 'bg-[#14B8A6] hover:bg-[#0D9488]', text: 'text-[#14B8A6]', border: 'focus:border-[#14B8A6]', lightBg: 'bg-teal-50/50', lightBorder: 'border-teal-200' },
-  'maron': { hex: '#9F1239', gradient: 'from-[#4C0519] via-[#881337] to-[#9F1239]', button: 'bg-[#E11D48] hover:bg-[#BE123C]', text: 'text-[#E11D48]', border: 'focus:border-[#E11D48]', lightBg: 'bg-rose-50/50', lightBorder: 'border-rose-200' },
-  'dark-grey': { hex: '#334155', gradient: 'from-[#0F172A] via-[#1E293B] to-[#334155]', button: 'bg-[#475569] hover:bg-[#334155]', text: 'text-[#475569]', border: 'focus:border-[#475569]', lightBg: 'bg-slate-100', lightBorder: 'border-slate-300' }
+  'biru': {
+    label: 'Biru (Navy & Royal)',
+    headerBg: 'bg-[#002D59]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#0056B3]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#002D59]',
+    footerText: 'text-blue-100',
+    button: 'bg-[#007AFF] hover:bg-[#0062CC] text-white',
+    text: 'text-[#007AFF]',
+    border: 'focus:border-[#007AFF]',
+    lightBg: 'bg-blue-50/60',
+    lightBorder: 'border-blue-200',
+    hexHeader: '#002D59',
+    hexSub: '#0056B3'
+  },
+  'biru muda': {
+    label: 'Biru Muda (Ocean & Sky)',
+    headerBg: 'bg-[#0369A1]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#0284C7]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#0369A1]',
+    footerText: 'text-sky-100',
+    button: 'bg-[#0EA5E9] hover:bg-[#0284C7] text-white',
+    text: 'text-[#0EA5E9]',
+    border: 'focus:border-[#0EA5E9]',
+    lightBg: 'bg-sky-50/60',
+    lightBorder: 'border-sky-200',
+    hexHeader: '#0369A1',
+    hexSub: '#0284C7'
+  },
+  'hijau': {
+    label: 'Hijau (Forest & Emerald)',
+    headerBg: 'bg-[#064E3B]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#059669]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#064E3B]',
+    footerText: 'text-emerald-100',
+    button: 'bg-[#10B981] hover:bg-[#059669] text-white',
+    text: 'text-[#10B981]',
+    border: 'focus:border-[#10B981]',
+    lightBg: 'bg-emerald-50/60',
+    lightBorder: 'border-emerald-200',
+    hexHeader: '#064E3B',
+    hexSub: '#059669'
+  },
+  'turquoise': {
+    label: 'Turquoise (Deep Teal & Turquoise)',
+    headerBg: 'bg-[#115E59]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#0D9488]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#115E59]',
+    footerText: 'text-teal-100',
+    button: 'bg-[#14B8A6] hover:bg-[#0D9488] text-white',
+    text: 'text-[#14B8A6]',
+    border: 'focus:border-[#14B8A6]',
+    lightBg: 'bg-teal-50/60',
+    lightBorder: 'border-teal-200',
+    hexHeader: '#115E59',
+    hexSub: '#0D9488'
+  },
+  'maron': {
+    label: 'Maron (Burgundy & Crimson)',
+    headerBg: 'bg-[#4C0519]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#9F1239]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#4C0519]',
+    footerText: 'text-rose-100',
+    button: 'bg-[#E11D48] hover:bg-[#BE123C] text-white',
+    text: 'text-[#E11D48]',
+    border: 'focus:border-[#E11D48]',
+    lightBg: 'bg-rose-50/60',
+    lightBorder: 'border-rose-200',
+    hexHeader: '#4C0519',
+    hexSub: '#9F1239'
+  },
+  'dark-grey': {
+    label: 'Dark Grey (Charcoal & Slate)',
+    headerBg: 'bg-[#0F172A]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#334155]',
+    subHeaderText: 'text-white',
+    footerBg: 'bg-[#0F172A]',
+    footerText: 'text-slate-300',
+    button: 'bg-[#475569] hover:bg-[#334155] text-white',
+    text: 'text-[#475569]',
+    border: 'focus:border-[#475569]',
+    lightBg: 'bg-slate-100',
+    lightBorder: 'border-slate-300',
+    hexHeader: '#0F172A',
+    hexSub: '#334155'
+  },
+  'putih': {
+    label: 'Putih Minimalis (Slate & Clean Light)',
+    headerBg: 'bg-[#334155]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-white',
+    subHeaderText: 'text-slate-800',
+    footerBg: 'bg-[#334155]',
+    footerText: 'text-slate-200',
+    button: 'bg-[#0F172A] hover:bg-[#334155] text-white',
+    text: 'text-[#0F172A]',
+    border: 'focus:border-[#0F172A]',
+    lightBg: 'bg-slate-100',
+    lightBorder: 'border-slate-300',
+    hexHeader: '#334155',
+    hexSub: '#FFFFFF'
+  },
+  'hitam': {
+    label: 'Hitam (Obsidian & Jet Black)',
+    headerBg: 'bg-[#000000]',
+    headerText: 'text-white',
+    subHeaderBg: 'bg-[#18181B]',
+    subHeaderText: 'text-slate-100',
+    footerBg: 'bg-[#000000]',
+    footerText: 'text-zinc-400',
+    button: 'bg-[#27272A] hover:bg-[#3F3F46] text-white',
+    text: 'text-[#18181B]',
+    border: 'focus:border-[#18181B]',
+    lightBg: 'bg-zinc-100',
+    lightBorder: 'border-zinc-300',
+    hexHeader: '#000000',
+    hexSub: '#18181B'
+  }
 };
 
 const resolveImageSrc = (imageData) => {
@@ -359,7 +481,7 @@ export default function App() {
 
     const dateRangeStr = getEventDateRange();
     const reversedGuestList = [...guestList].reverse();
-    const hexTheme = currentTheme.hex;
+    const hexTheme = currentTheme.hexHeader;
 
     const thHtml = `
       <tr>
@@ -499,50 +621,53 @@ export default function App() {
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
-        {/* HEADER UTAMA MINIMALIS */}
-        <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <ImmigrationLogo className="w-10 h-12 sm:w-12 sm:h-14" />
-            <div className="flex flex-col">
-              <h1 className="text-sm sm:text-[15px] font-black text-slate-800 uppercase tracking-wide">
-                Kantor Imigrasi Kelas II TPI Kediri
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 text-xs font-mono font-bold text-slate-600 border border-slate-100`}>
-              <Clock className={`w-3.5 h-3.5 ${currentTheme.text} animate-pulse`} />
-              <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
-            </div>
-            {viewMode === 'form' ? (
-              <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold shadow-sm hover:bg-slate-700 transition">
-                <Lock className="w-3.5 h-3.5" /><span>Admin</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
-                  <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
-                </button>
-                <button onClick={handleAdminLogout} className="p-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition">
-                  <LogOut className="w-4 h-4" />
-                </button>
+        {/* CONTAINER HEADER + SUB-HEADER MENYATU (TANPA GAP) */}
+        <div className="rounded-3xl overflow-hidden shadow-md border border-slate-200/60">
+          {/* HEADER UTAMA (WARNA LEBIH TUA) */}
+          <div className={`${currentTheme.headerBg} ${currentTheme.headerText} p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300`}>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <ImmigrationLogo className="w-10 h-12 sm:w-12 sm:h-14" />
+              <div className="flex flex-col">
+                <h1 className="text-xs sm:text-sm font-bold tracking-wider uppercase opacity-90">
+                  KANTOR IMIGRASI KELAS II TPI KEDIRI
+                </h1>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* SUB-HEADER INFO PAMERAN */}
-        <div className={`bg-gradient-to-r ${currentTheme.gradient} rounded-3xl p-6 sm:p-8 shadow-md text-white flex flex-col justify-center text-center sm:text-left relative overflow-hidden`}>
-           <h2 className="text-xl sm:text-3xl font-black uppercase leading-tight drop-shadow-sm mb-2">
-             {eventConfig.namaKegiatan}
-           </h2>
-           <div className="flex items-center justify-center sm:justify-start gap-1.5 text-white/90">
-             <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
-             <p className="text-xs sm:text-sm font-medium tracking-wide">
-               {eventConfig.lokasi}
-             </p>
-           </div>
+            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/10">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/20 text-xs font-mono font-medium text-white/90 border border-white/10">
+                <Clock className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+                <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
+              </div>
+              {viewMode === 'form' ? (
+                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
+                  <Lock className="w-3.5 h-3.5" /><span>Admin</span>
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
+                    <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
+                  </button>
+                  <button onClick={handleAdminLogout} className="p-2 bg-rose-500/80 hover:bg-rose-600 text-white rounded-xl transition">
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* SUB-HEADER INFO PAMERAN (WARNA LEBIH TERANG / MUDA) */}
+          <div className={`${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} p-5 sm:p-6 transition-colors duration-300 flex flex-col justify-center text-center sm:text-left border-t border-black/5`}>
+            <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight mb-1.5">
+              {eventConfig.namaKegiatan}
+            </h2>
+            <div className="flex items-center justify-center sm:justify-start gap-1.5 opacity-90">
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              <p className="text-xs sm:text-sm font-medium tracking-wide">
+                {eventConfig.lokasi}
+              </p>
+            </div>
+          </div>
         </div>
 
         {viewMode === 'form' && (
@@ -733,12 +858,9 @@ export default function App() {
                     <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Tema Warna Aplikasi</label>
                     <div className="relative">
                       <select required value={tempEventConfig.tema || 'biru'} onChange={(e) => setTempEventConfig({ ...tempEventConfig, tema: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none cursor-pointer pr-10`}>
-                        <option value="biru">Biru (Default)</option>
-                        <option value="biru muda">Biru Muda</option>
-                        <option value="hijau">Hijau</option>
-                        <option value="turquoise">Turquoise</option>
-                        <option value="maron">Maron</option>
-                        <option value="dark-grey">Dark Grey</option>
+                        {Object.entries(THEMES).map(([key, themeObj]) => (
+                          <option key={key} value={key}>{themeObj.label}</option>
+                        ))}
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -752,11 +874,12 @@ export default function App() {
         )}
       </div>
 
-      <footer className="mt-auto bg-[#0F172A] text-slate-400 py-6 px-4 text-center border-t border-slate-800">
+      {/* FOOTER APLIKASI (WARNA DENGAN WARNA HEADER) */}
+      <footer className={`mt-auto ${currentTheme.footerBg} ${currentTheme.footerText} py-6 px-4 text-center border-t border-black/10 transition-colors duration-300`}>
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
-          <p className="font-black tracking-wider text-slate-200">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
-          <p className="font-medium leading-relaxed">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
-          <p className="text-[10px] font-mono pt-1">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
+          <p className="font-black tracking-wider uppercase">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
+          <p className="font-medium leading-relaxed opacity-90">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
+          <p className="text-[10px] font-mono pt-1 opacity-75">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
         </div>
       </footer>
 
