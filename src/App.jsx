@@ -158,9 +158,6 @@ const THEMES = {
   }
 };
 
-// ==========================================
-// FUNGSI PERBAIKAN RENDER GAMBAR (BASE64 & DRIVE)
-// ==========================================
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
   if (imageData.startsWith('data:')) return imageData;
@@ -214,7 +211,6 @@ export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
 
-  // PENAMBAHAN DEFAULT TEKS SURVEI
   const [eventConfig, setEventConfig] = useState(() => {
     const saved = localStorage.getItem('imigrasi_event_config');
     return saved ? JSON.parse(saved) : {
@@ -355,13 +351,24 @@ export default function App() {
     }
   };
 
+  // PERBAIKAN FUNGSI KAMERA AGAR SELALU RESPONSIF DI HALAMAN USER
   const startCamera = async () => {
-    try { 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false }); 
-      if (videoRef.current) videoRef.current.srcObject = stream; 
+    try {
       setIsCameraActive(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: cameraFacing, width: { ideal: 640 }, height: { ideal: 480 } }, 
+        audio: false 
+      }); 
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
     } 
-    catch (err) { showToast('Izin akses kamera ditolak.', 'error'); }
+    catch (err) { 
+      setIsCameraActive(false);
+      showToast('Izin akses kamera ditolak atau perangkat tidak mendukung.', 'error'); 
+    }
   };
 
   const stopCamera = () => {
@@ -386,9 +393,12 @@ export default function App() {
     const canvas = canvasPhotoRef.current || document.createElement('canvas');
     
     const maxWidth = 400;
-    const scale = maxWidth / video.videoWidth;
+    const videoWidth = video.videoWidth || 640;
+    const videoHeight = video.videoHeight || 480;
+    const scale = maxWidth / videoWidth;
+    
     canvas.width = maxWidth; 
-    canvas.height = video.videoHeight * scale; 
+    canvas.height = videoHeight * scale; 
     
     const ctx = canvas.getContext('2d');
     if (cameraFacing === 'user') { 
@@ -758,7 +768,7 @@ export default function App() {
                     {photoData && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Foto Siap</span>}
                   </div>
                   <div className="relative aspect-video w-full bg-[#E5E5EA] rounded-2xl overflow-hidden border border-slate-200/80 flex items-center justify-center shadow-inner">
-                    {isCameraActive && <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraFacing === 'user' ? '-scale-x-100' : ''}`} />}
+                    <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''} ${cameraFacing === 'user' ? '-scale-x-100' : ''}`} />
                     {!isCameraActive && photoData && <img src={resolveImageSrc(photoData)} alt="Foto" className="w-full h-full object-cover" />}
                     {!isCameraActive && !photoData && (
                       <div className="flex flex-col items-center justify-center p-4 text-center space-y-1.5">
@@ -874,13 +884,10 @@ export default function App() {
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
-                  
-                  {/* PENAMBAHAN FIELD TEKS SURVEI */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Teks Ajakan Survei (Pop-up Berhasil)</label>
                     <input type="text" required value={tempEventConfig.teksSurvei || ''} onChange={(e) => setTempEventConfig({ ...tempEventConfig, teksSurvei: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                   </div>
-                  
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
                     <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
@@ -953,12 +960,9 @@ export default function App() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-              
-              {/* PENERAPAN TEKS SURVEI DINAMIS */}
               <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>
                 {eventConfig.teksSurvei}
               </p>
-
             </div>
             <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
               <span>SURVEI</span>
