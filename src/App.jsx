@@ -958,7 +958,7 @@ export default function App() {
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-8 h-8" /></div>
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
+              <h3 className="text-lg font-bold text-[#1C1C1E]">Kehadiran Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
               <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>
                 {eventConfig.teksSurvei}
