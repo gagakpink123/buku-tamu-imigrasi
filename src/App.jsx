@@ -802,7 +802,7 @@ export default function App() {
                 </div>
 
                 <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
-                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah ke Drive...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
+                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan..</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
             </form>
@@ -965,7 +965,7 @@ export default function App() {
               </p>
             </div>
             <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
-              <span>REVIEW</span>
+              <span>ULAS KAMI</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
