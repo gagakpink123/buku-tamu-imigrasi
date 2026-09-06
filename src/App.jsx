@@ -4,7 +4,7 @@ import {
   Settings, List, Copy, Check, Trash2, HelpCircle,
   X, AlertCircle, Download, FolderOpen, Lock, Unlock, ShieldCheck,
   Clock, Calendar, Search, Info, LogOut, ChevronRight, ChevronDown,
-  Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink
+  Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink, Palette
 } from 'lucide-react';
 
 // 1. IMPORT FIREBASE
@@ -32,6 +32,18 @@ try {
   console.warn("Firebase berjalan dalam mode lokal (fallback).");
 }
 
+// ==========================================
+// KONFIGURASI TEMA APLIKASI
+// ==========================================
+const THEMES = {
+  'biru': { hex: '#003B73', gradient: 'from-[#003B73] via-[#004B93] to-[#001B36]', button: 'bg-[#007AFF] hover:bg-[#0062CC]', text: 'text-[#007AFF]', border: 'focus:border-[#007AFF]', lightBg: 'bg-blue-50/50', lightBorder: 'border-blue-200' },
+  'biru muda': { hex: '#0284C7', gradient: 'from-[#0284C7] via-[#0369A1] to-[#075985]', button: 'bg-[#0EA5E9] hover:bg-[#0284C7]', text: 'text-[#0EA5E9]', border: 'focus:border-[#0EA5E9]', lightBg: 'bg-sky-50/50', lightBorder: 'border-sky-200' },
+  'hijau': { hex: '#059669', gradient: 'from-[#064E3B] via-[#065F46] to-[#047857]', button: 'bg-[#10B981] hover:bg-[#059669]', text: 'text-[#10B981]', border: 'focus:border-[#10B981]', lightBg: 'bg-emerald-50/50', lightBorder: 'border-emerald-200' },
+  'turquoise': { hex: '#0D9488', gradient: 'from-[#115E59] via-[#0F766E] to-[#0D9488]', button: 'bg-[#14B8A6] hover:bg-[#0D9488]', text: 'text-[#14B8A6]', border: 'focus:border-[#14B8A6]', lightBg: 'bg-teal-50/50', lightBorder: 'border-teal-200' },
+  'maron': { hex: '#9F1239', gradient: 'from-[#4C0519] via-[#881337] to-[#9F1239]', button: 'bg-[#E11D48] hover:bg-[#BE123C]', text: 'text-[#E11D48]', border: 'focus:border-[#E11D48]', lightBg: 'bg-rose-50/50', lightBorder: 'border-rose-200' },
+  'dark-grey': { hex: '#334155', gradient: 'from-[#0F172A] via-[#1E293B] to-[#334155]', button: 'bg-[#475569] hover:bg-[#334155]', text: 'text-[#475569]', border: 'focus:border-[#475569]', lightBg: 'bg-slate-100', lightBorder: 'border-slate-300' }
+};
+
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
   if (imageData.startsWith('data:')) return imageData;
@@ -46,9 +58,6 @@ const resolveImageSrc = (imageData) => {
   return imageData;
 };
 
-// ==========================================
-// FUNGSI PAKSA BAHASA INDONESIA 100%
-// ==========================================
 const formatTanggalIndo = (dateObj) => {
   const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
   const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -69,12 +78,12 @@ const translateDateToIndo = (dateStr) => {
 };
 
 // --- LOGO ---
-function ImmigrationLogo({ className = "w-16 h-20 sm:w-20 sm:h-24" }) {
+function ImmigrationLogo({ className = "w-10 h-10" }) {
   return (
     <img 
       src="/logo-imigrasi.png" 
       alt="Logo Imigrasi" 
-      className={`${className} object-contain filter drop-shadow-md`} 
+      className={`${className} object-contain filter drop-shadow-sm`} 
       onError={(e) => {
         e.target.onerror = null; 
         e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg/1024px-Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg.png";
@@ -92,10 +101,13 @@ export default function App() {
     return saved ? JSON.parse(saved) : {
       namaKegiatan: 'STAND PAMERAN UMKM FEST',
       lokasi: 'Simpang Lima Gumul Kabupaten Kediri',
-      surveiUrl: 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie'
+      surveiUrl: 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
+      tema: 'biru'
     };
   });
   const [tempEventConfig, setTempEventConfig] = useState({ ...eventConfig });
+
+  const currentTheme = THEMES[eventConfig.tema] || THEMES['biru'];
 
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -106,7 +118,6 @@ export default function App() {
   const [userIpAddress, setUserIpAddress] = useState('Memuat IP...');
   const [gpsLocation, setGpsLocation] = useState('Meminta akses lokasi...');
 
-  // State layanan diset kosong secara default
   const [formData, setFormData] = useState({
     nama: '', alamat: '', whatsapp: '', layanan: '', layananLainnya: '', kesan: ''
   });
@@ -121,6 +132,7 @@ export default function App() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [lastSubmittedGuest, setLastSubmittedGuest] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   
@@ -173,7 +185,8 @@ export default function App() {
           const mergedData = {
             namaKegiatan: data.namaKegiatan || 'STAND PAMERAN UMKM FEST',
             lokasi: data.lokasi || 'Simpang Lima Gumul Kabupaten Kediri',
-            surveiUrl: data.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie'
+            surveiUrl: data.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
+            tema: data.tema || 'biru'
           };
           setEventConfig(mergedData); 
           setTempEventConfig(mergedData);
@@ -215,9 +228,9 @@ export default function App() {
     if (db) { 
       try { 
         await setDoc(doc(db, "pengaturan", "infoPameran"), tempEventConfig); 
-        showToast('Info & Link Survei disinkronisasi ke Cloud!', 'success'); 
+        showToast('Info & Tema berhasil disinkronisasi ke Cloud!', 'success'); 
       } catch (err) { 
-        showToast('Info disimpan lokal.', 'info'); 
+        showToast('Pengaturan disimpan secara lokal.', 'info'); 
       } 
     }
   };
@@ -298,7 +311,6 @@ export default function App() {
   
   const handleOpenSurvei = () => {
     setShowSuccessModal(false);
-    // Reset kembali pilihan layanan menjadi kosong
     setFormData({ nama: '', alamat: '', whatsapp: '', layanan: '', layananLainnya: '', kesan: '' });
     setPhotoData(null); 
     setSignatureData(null); 
@@ -337,7 +349,8 @@ export default function App() {
     return `${oldestDate} - ${newestDate}`;
   };
 
-  const handleDownloadPDF = () => {
+  const handleExecutePDF = (mode) => {
+    setShowPdfModal(false);
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showToast('Pop-up diblokir browser. Izinkan pop-up untuk mencetak laporan PDF.', 'error');
@@ -345,8 +358,76 @@ export default function App() {
     }
 
     const dateRangeStr = getEventDateRange();
-
     const reversedGuestList = [...guestList].reverse();
+    const hexTheme = currentTheme.hex;
+
+    const thHtml = `
+      <tr>
+        <th style="width: 30px;">No</th>
+        <th style="width: 85px;">Hari/Tanggal</th>
+        <th style="width: 95px;">Nama</th>
+        <th style="width: 95px;">Alamat</th>
+        <th style="width: 85px;">No HP/WA</th>
+        <th style="width: 90px;">Keperluan</th>
+        <th style="width: 90px;">Kesan/Pesan</th>
+        <th style="width: 85px;">Koordinat Lokasi</th>
+        <th style="width: 60px;">Foto</th>
+        <th style="width: 70px;">TTD</th>
+      </tr>
+    `;
+
+    const generateRowHtml = (g, idx) => `
+      <tr>
+        <td class="center"><b>${idx + 1}</b></td>
+        <td style="font-size: 8pt;">${translateDateToIndo(g.hariTanggal)}<br/><span style="font-size: 7.5pt; color: #666;">${g.jamKunjungan}</span></td>
+        <td><b>${g.nama}</b></td>
+        <td>${g.alamat}</td>
+        <td style="font-family: monospace;">${g.whatsapp}</td>
+        <td>${g.layanan}</td>
+        <td style="font-style: italic; color: #444;">${g.kesan || '-'}</td>
+        <td style="font-size: 7.5pt; font-family: monospace;">${g.gps || '-'}</td>
+        <td class="center">
+          <div class="img-container">
+            ${g.photo ? `<img src="${resolveImageSrc(g.photo)}" class="img-thumbnail" />` : '-'}
+          </div>
+        </td>
+        <td class="center">
+          ${g.signature ? `<img src="${resolveImageSrc(g.signature)}" class="sign-thumbnail" />` : '-'}
+        </td>
+      </tr>
+    `;
+
+    let tablesContent = '';
+
+    if (mode === 'all') {
+      tablesContent = `
+        <table>
+          <thead>${thHtml}</thead>
+          <tbody>
+            ${reversedGuestList.map((g, idx) => generateRowHtml(g, idx)).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      const groupedData = {};
+      reversedGuestList.forEach(g => {
+        const dStr = translateDateToIndo(g.hariTanggal);
+        if (!groupedData[dStr]) groupedData[dStr] = [];
+        groupedData[dStr].push(g);
+      });
+
+      Object.keys(groupedData).forEach(dateStr => {
+        tablesContent += `
+          <h3 class="date-header">Daftar Pengunjung - ${dateStr}</h3>
+          <table>
+            <thead>${thHtml}</thead>
+            <tbody>
+              ${groupedData[dateStr].map((g, idx) => generateRowHtml(g, idx)).join('')}
+            </tbody>
+          </table>
+        `;
+      });
+    }
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -356,12 +437,13 @@ export default function App() {
         <title>Laporan Daftar Pengunjung - Imigrasi Kediri</title>
         <style>
           body { font-family: Arial, sans-serif; color: #1c1c1e; margin: 15px; background: #ffffff; }
-          .header-report { text-align: center; margin-bottom: 25px; border-bottom: 2px solid #003B73; padding-bottom: 15px; }
-          .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: #003B73; letter-spacing: 0.5px; }
+          .header-report { text-align: center; margin-bottom: 25px; border-bottom: 2px solid ${hexTheme}; padding-bottom: 15px; }
+          .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: ${hexTheme}; letter-spacing: 0.5px; }
           .header-report p { margin: 4px 0; font-size: 10.5pt; color: #333; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+          .date-header { margin-top: 30px; margin-bottom: 10px; font-size: 11pt; color: ${hexTheme}; border-left: 4px solid ${hexTheme}; padding-left: 8px; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; margin-bottom: 20px; }
           th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
-          th { background-color: #003B73; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
+          th { background-color: ${hexTheme}; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
           
           .img-container { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; }
@@ -371,6 +453,9 @@ export default function App() {
           @media print {
             body { margin: 0; }
             button { display: none; }
+            .date-header { page-break-after: avoid; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
           }
         </style>
       </head>
@@ -378,46 +463,11 @@ export default function App() {
         <div class="header-report">
           <h2>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h2>
           <p><b>${eventConfig.namaKegiatan} | Lokasi: ${eventConfig.lokasi}</b></p>
-          <p style="font-weight: bold; color: #003B73; font-size: 9.5pt; margin-top: 6px;">Tanggal: ${dateRangeStr}</p>
+          <p style="font-weight: bold; color: ${hexTheme}; font-size: 9.5pt; margin-top: 6px;">Periode: ${dateRangeStr}</p>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 30px;">No</th>
-              <th style="width: 85px;">Hari/Tanggal</th>
-              <th style="width: 95px;">Nama</th>
-              <th style="width: 95px;">Alamat</th>
-              <th style="width: 85px;">No HP/WA</th>
-              <th style="width: 90px;">Keperluan</th>
-              <th style="width: 90px;">Kesan/Pesan</th>
-              <th style="width: 85px;">Koordinat Lokasi</th>
-              <th style="width: 60px;">Foto</th>
-              <th style="width: 70px;">TTD</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${reversedGuestList.map((g, idx) => `
-              <tr>
-                <td class="center"><b>${idx + 1}</b></td>
-                <td style="font-size: 8pt;">${translateDateToIndo(g.hariTanggal)}<br/><span style="font-size: 7.5pt; color: #666;">${g.jamKunjungan}</span></td>
-                <td><b>${g.nama}</b></td>
-                <td>${g.alamat}</td>
-                <td style="font-family: monospace;">${g.whatsapp}</td>
-                <td>${g.layanan}</td>
-                <td style="font-style: italic; color: #444;">${g.kesan || '-'}</td>
-                <td style="font-size: 7.5pt; font-family: monospace;">${g.gps || '-'}</td>
-                <td class="center">
-                  <div class="img-container">
-                    ${g.photo ? `<img src="${resolveImageSrc(g.photo)}" class="img-thumbnail" />` : '-'}
-                  </div>
-                </td>
-                <td class="center">
-                  ${g.signature ? `<img src="${resolveImageSrc(g.signature)}" class="sign-thumbnail" />` : '-'}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
+        
+        ${tablesContent}
+
         <script>
           window.onload = function() {
             setTimeout(() => {
@@ -449,50 +499,50 @@ export default function App() {
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
-        <div className="bg-gradient-to-br from-[#003B73] via-[#004B93] to-[#001B36] rounded-3xl p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,59,115,0.25)] text-white relative overflow-hidden">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-            
-            <div className="flex items-center gap-5 sm:gap-7">
-              <div className="flex-shrink-0 bg-white/10 p-3 sm:p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner">
-                <ImmigrationLogo className="w-14 h-16 sm:w-16 sm:h-20" />
-              </div>
-              <div className="flex flex-col justify-center">
-                <h1 className="text-[10px] sm:text-xs font-bold text-blue-200 tracking-[0.2em] uppercase mb-1.5 opacity-90">
-                  Kantor Imigrasi Kelas II TPI Kediri
-                </h1>
-                <p className="text-xl sm:text-3xl font-black text-white uppercase leading-tight drop-shadow-md">
-                  {eventConfig.namaKegiatan}
-                </p>
-                <div className="flex items-center gap-1.5 mt-2 sm:mt-2.5 text-amber-300">
-                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 drop-shadow-sm" />
-                  <p className="text-xs sm:text-sm font-semibold tracking-wide drop-shadow-sm">
-                    {eventConfig.lokasi}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-white/15">
-              <div className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-black/20 backdrop-blur-md text-xs font-mono font-medium text-amber-300 border border-white/10">
-                <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
-              </div>
-              {viewMode === 'form' ? (
-                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-5 py-2.5 rounded-2xl bg-white text-[#003B73] text-xs font-bold shadow-md hover:bg-blue-50 transition">
-                  <Lock className="w-3.5 h-3.5" /><span>Admin</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-md transition border border-white/20">
-                    <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
-                  </button>
-                  <button onClick={handleAdminLogout} className="p-2.5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-2xl transition border border-rose-400/30">
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+        {/* HEADER UTAMA MINIMALIS */}
+        <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <ImmigrationLogo className="w-10 h-12 sm:w-12 sm:h-14" />
+            <div className="flex flex-col">
+              <h1 className="text-sm sm:text-[15px] font-black text-slate-800 uppercase tracking-wide">
+                Kantor Imigrasi Kelas II TPI Kediri
+              </h1>
             </div>
           </div>
+
+          <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+            <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 text-xs font-mono font-bold text-slate-600 border border-slate-100`}>
+              <Clock className={`w-3.5 h-3.5 ${currentTheme.text} animate-pulse`} />
+              <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
+            </div>
+            {viewMode === 'form' ? (
+              <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold shadow-sm hover:bg-slate-700 transition">
+                <Lock className="w-3.5 h-3.5" /><span>Admin</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition">
+                  <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
+                </button>
+                <button onClick={handleAdminLogout} className="p-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition">
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* SUB-HEADER INFO PAMERAN */}
+        <div className={`bg-gradient-to-r ${currentTheme.gradient} rounded-3xl p-6 sm:p-8 shadow-md text-white flex flex-col justify-center text-center sm:text-left relative overflow-hidden`}>
+           <h2 className="text-xl sm:text-3xl font-black uppercase leading-tight drop-shadow-sm mb-2">
+             {eventConfig.namaKegiatan}
+           </h2>
+           <div className="flex items-center justify-center sm:justify-start gap-1.5 text-white/90">
+             <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+             <p className="text-xs sm:text-sm font-medium tracking-wide">
+               {eventConfig.lokasi}
+             </p>
+           </div>
         </div>
 
         {viewMode === 'form' && (
@@ -500,7 +550,7 @@ export default function App() {
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-sm text-center space-y-1.5">
               <h2 className="text-lg sm:text-xl font-extrabold text-[#1C1C1E] tracking-tight">DAFTAR KEHADIRAN PENGUNJUNG</h2>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#F2F2F7] rounded-full text-xs text-slate-700 font-medium">
-                <Calendar className="w-3.5 h-3.5 text-[#007AFF]" />
+                <Calendar className={`w-3.5 h-3.5 ${currentTheme.text}`} />
                 <span><strong>Hari/Tanggal:</strong> {formatTanggalIndo(currentTime)}</span>
               </div>
             </div>
@@ -508,27 +558,26 @@ export default function App() {
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               <div className="lg:col-span-6 bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
                 <div className="border-b border-slate-100 pb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-[#007AFF]" /> Informasi Pengunjung</h3>
+                  <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><User className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Informasi Pengunjung</h3>
                 </div>
                 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nama Lengkap <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Alamat / Instansi <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nomor WhatsApp <span className="text-rose-500">*</span></label>
-                  <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                  <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Keperluan / Layanan Stand <span className="text-rose-500">*</span></label>
                   <div className="relative">
-                    {/* Atribut required dan opsi default kosong (disabled) agar user harus memilih */}
-                    <select required value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className="w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none cursor-pointer pr-10">
+                    <select required value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none cursor-pointer pr-10`}>
                       <option value="" disabled hidden>-- Pilih Keperluan --</option>
                       <option value="Informasi Layanan Paspor">Informasi Layanan Paspor</option>
                       <option value="Informasi Layanan WNA">Informasi Layanan WNA</option>
@@ -540,21 +589,21 @@ export default function App() {
                 </div>
                 {formData.layanan === 'Lainnya' && (
                   <div className="space-y-1.5 animate-in fade-in duration-200">
-                    <label className="text-xs font-semibold text-[#007AFF]">Sebutkan Keperluan Lainnya <span className="text-rose-500">*</span></label>
-                    <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-blue-50/50 border border-blue-200 text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                    <label className={`text-xs font-semibold ${currentTheme.text}`}>Sebutkan Keperluan Lainnya <span className="text-rose-500">*</span></label>
+                    <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className={`w-full px-4 py-3 rounded-2xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                   </div>
                 )}
 
                 <div className="space-y-1.5 pt-2">
                   <label className="text-xs font-semibold text-slate-700">Kesan/Pesan <span className="text-slate-400 font-normal">(Opsional)</span></label>
-                  <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition resize-none h-20" />
+                  <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition resize-none h-20`} />
                 </div>
               </div>
 
               <div className="lg:col-span-6 space-y-5">
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3.5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><Camera className="w-3.5 h-3.5 text-[#007AFF]" /> Foto Pengunjung <span className="text-rose-500">*</span></h3>
+                    <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><Camera className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Foto Pengunjung <span className="text-rose-500">*</span></h3>
                     {photoData && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Foto Siap</span>}
                   </div>
                   <div className="relative aspect-video w-full bg-[#E5E5EA] rounded-2xl overflow-hidden border border-slate-200/80 flex items-center justify-center shadow-inner">
@@ -569,7 +618,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     {!isCameraActive ? (
-                      <button type="button" onClick={startCamera} className="w-full py-2.5 px-4 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-sm"><Camera className="w-3.5 h-3.5" />{photoData ? 'Ambil Ulang (Kamera)' : 'Buka Kamera'}</button>
+                      <button type="button" onClick={startCamera} className={`w-full py-2.5 px-4 ${currentTheme.button} text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-sm`}><Camera className="w-3.5 h-3.5" />{photoData ? 'Ambil Ulang (Kamera)' : 'Buka Kamera'}</button>
                     ) : (
                       <>
                         <button type="button" onClick={capturePhoto} className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition"><Check className="w-3.5 h-3.5" />Jepret Foto</button>
@@ -582,7 +631,7 @@ export default function App() {
 
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"><PenTool className="w-3.5 h-3.5 text-[#007AFF]" /> Tanda Tangan <span className="text-rose-500">*</span></h3>
+                    <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><PenTool className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Tanda Tangan <span className="text-rose-500">*</span></h3>
                     <button type="button" onClick={clearSignature} className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition"><Trash2 className="w-3 h-3" /> Hapus</button>
                   </div>
                   <div className="relative w-full h-44 bg-[#F9F9FB] rounded-2xl overflow-hidden border border-slate-200/80 touch-none flex items-center justify-center shadow-inner">
@@ -591,7 +640,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <button type="submit" disabled={isSubmitting} className="w-full py-4 px-5 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,122,255,0.25)] disabled:opacity-50 transition">
+                <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
                   {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
@@ -603,11 +652,11 @@ export default function App() {
           <div className="space-y-5 animate-in fade-in duration-300">
             <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
-                <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600 hover:bg-black/5'}`}>
+                <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
                   <List className="w-3.5 h-3.5" /><span>Daftar Pengunjung ({guestList.length})</span>
                 </button>
-                <button onClick={() => setAdminTab('event')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'event' ? 'bg-white text-[#1C1C1E] shadow-sm' : 'text-slate-600 hover:bg-black/5'}`}>
-                  <Edit3 className="w-3.5 h-3.5" /><span>Info Pameran</span>
+                <button onClick={() => setAdminTab('event')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'event' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
+                  <Edit3 className="w-3.5 h-3.5" /><span>Info & Tema Pameran</span>
                 </button>
               </div>
             </div>
@@ -616,17 +665,17 @@ export default function App() {
               <div className="space-y-4">
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                   <div>
-                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><List className="w-4 h-4 text-[#007AFF]" />Rekapitulasi Pengunjung ({guestList.length})</h2>
+                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><List className={`w-4 h-4 ${currentTheme.text}`} />Rekapitulasi Pengunjung ({guestList.length})</h2>
                     <p className="text-xs text-slate-500 font-medium">Data sinkron otomatis dengan Google Spreadsheet Cloud</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-56">
                       <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
-                      <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white focus:border-[#007AFF] outline-none font-medium transition" />
+                      <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white ${currentTheme.border} outline-none font-medium transition`} />
                     </div>
-                    <button onClick={handleRefreshSync} disabled={isSyncing} className="px-4 py-2 bg-[#007AFF] hover:bg-[#0062CC] disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
+                    <button onClick={handleRefreshSync} disabled={isSyncing} className={`px-4 py-2 ${currentTheme.button} disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm`}><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
                     
-                    <button onClick={handleDownloadPDF} disabled={guestList.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                    <button onClick={() => setShowPdfModal(true)} disabled={guestList.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
                       <Printer className="w-3.5 h-3.5" /> Laporan PDF
                     </button>
                   </div>
@@ -647,7 +696,7 @@ export default function App() {
                             <img src={resolveImageSrc(guest.photo)} alt={guest.nama} className="w-full h-full object-cover" />
                           </div>
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-2"><h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4><span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 text-[#007AFF] font-semibold">{guest.layanan}</span></div>
+                            <div className="flex items-center gap-2"><h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4><span className={`text-[10px] px-2.5 py-0.5 rounded-full ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text} font-semibold`}>{guest.layanan}</span></div>
                             <p className="text-xs text-slate-500 font-medium">{guest.alamat} • WhatsApp: <span className="font-mono">{guest.whatsapp}</span></p>
                             <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {translateDateToIndo(guest.hariTanggal)} • {guest.jamKunjungan}</p>
                           </div>
@@ -657,7 +706,7 @@ export default function App() {
                             <span>ID: {guest.id}</span>
                             <span className="text-emerald-600 font-medium">{guest.driveStatus || 'Tersimpan'}</span>
                           </div>
-                          <button onClick={() => setPreviewItem(guest)} className="px-4 py-2 bg-[#F2F2F7] hover:bg-[#007AFF] hover:text-white text-[#007AFF] rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow-sm">
+                          <button onClick={() => setPreviewItem(guest)} className={`px-4 py-2 bg-[#F2F2F7] hover:bg-slate-200 ${currentTheme.text} rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow-sm`}>
                             <span>Detail</span><ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -670,17 +719,32 @@ export default function App() {
 
             {adminTab === 'event' && (
               <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
-                <div><h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Edit3 className="w-4 h-4 text-[#007AFF]" />Pengaturan Nama Kegiatan, Lokasi & Tautan Survei</h2></div>
+                <div><h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Settings className={`w-4 h-4 ${currentTheme.text}`} />Pengaturan Utama Pameran</h2></div>
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
-                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
-                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" /></div>
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
+                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
                   
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
-                    <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className="w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white focus:border-[#007AFF] outline-none transition" />
+                    <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                   </div>
 
-                  <button type="submit" className="flex items-center gap-2 px-5 py-3 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl font-bold text-xs shadow-sm transition"><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
+                  <div className="space-y-1.5 border-t border-slate-100 pt-4 mt-2">
+                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Tema Warna Aplikasi</label>
+                    <div className="relative">
+                      <select required value={tempEventConfig.tema || 'biru'} onChange={(e) => setTempEventConfig({ ...tempEventConfig, tema: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none cursor-pointer pr-10`}>
+                        <option value="biru">Biru (Default)</option>
+                        <option value="biru muda">Biru Muda</option>
+                        <option value="hijau">Hijau</option>
+                        <option value="turquoise">Turquoise</option>
+                        <option value="maron">Maron</option>
+                        <option value="dark-grey">Dark Grey</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <button type="submit" className={`mt-2 flex items-center gap-2 px-5 py-3 ${currentTheme.button} text-white rounded-2xl font-bold text-xs shadow-sm transition`}><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
                 </form>
               </div>
             )}
@@ -688,24 +752,44 @@ export default function App() {
         )}
       </div>
 
-      <footer className="mt-auto bg-[#002D59] text-white py-6 px-4 text-center border-t border-blue-900/40">
+      <footer className="mt-auto bg-[#0F172A] text-slate-400 py-6 px-4 text-center border-t border-slate-800">
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
-          <p className="font-black tracking-wider text-amber-300">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
-          <p className="text-blue-100/90 font-medium leading-relaxed">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
-          <p className="text-[11px] text-blue-300 font-mono pt-1">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
+          <p className="font-black tracking-wider text-slate-200">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
+          <p className="font-medium leading-relaxed">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
+          <p className="text-[10px] font-mono pt-1">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
         </div>
       </footer>
 
       {showLoginModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
-            <div className="text-center space-y-1"><div className="w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl bg-[#007AFF]/10 text-[#007AFF]"><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3></div>
+            <div className="text-center space-y-1"><div className={`w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text}`}><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3></div>
             {loginError && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-medium">{loginError}</div>}
             <form onSubmit={handleAdminLogin} className="space-y-2.5">
-              <input type="text" required placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none" />
-              <input type="password" required placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className="w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white focus:border-[#007AFF] outline-none" />
-              <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button><button type="submit" className="flex-1 py-2.5 bg-[#007AFF] hover:bg-[#0062CC] text-white font-bold rounded-xl text-xs transition shadow-sm">Masuk</button></div>
+              <input type="text" required placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white ${currentTheme.border} outline-none`} />
+              <input type="password" required placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white ${currentTheme.border} outline-none`} />
+              <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button><button type="submit" className={`flex-1 py-2.5 ${currentTheme.button} text-white font-bold rounded-xl text-xs transition shadow-sm`}>Masuk</button></div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PILIHAN FORMAT LAPORAN PDF */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-[#1C1C1E]">Format Laporan PDF</h3>
+              <button onClick={() => setShowPdfModal(false)} className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <button onClick={() => handleExecutePDF('all')} className={`w-full py-3.5 ${currentTheme.button} text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm`}>
+                <List className="w-4 h-4"/> 1 Tabel (Keseluruhan Data)
+              </button>
+              <button onClick={() => handleExecutePDF('per-day')} className={`w-full py-3.5 ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text} hover:bg-slate-100 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm`}>
+                <Calendar className="w-4 h-4"/> Pisah Tabel (Per Hari/Tanggal)
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -717,11 +801,11 @@ export default function App() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-              <p className="text-xs text-[#003B73] font-semibold leading-relaxed pt-1">Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.</p>
+              <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.</p>
             </div>
             <button 
               onClick={handleOpenSurvei} 
-              className="w-full py-3.5 mt-2 bg-[#007AFF] hover:bg-[#0062CC] text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-[0_4px_16px_rgba(0,122,255,0.3)]"
+              className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}
             >
               <span>SURVEI</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -744,18 +828,18 @@ export default function App() {
             
             <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Status Data:</span><span className={`font-semibold ${previewItem.driveStatus && previewItem.driveStatus.includes('Gagal') ? 'text-rose-600' : 'text-emerald-600'}`}>{previewItem.driveStatus || 'Tersimpan'}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className="font-semibold text-[#007AFF] text-right">{translateDateToIndo(previewItem.hariTanggal)} • {previewItem.jamKunjungan}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className={`font-semibold ${currentTheme.text} text-right`}>{translateDateToIndo(previewItem.hariTanggal)} • {previewItem.jamKunjungan}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-[#1C1C1E] text-sm text-right">{previewItem.nama}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Instansi:</span><span className="text-slate-700 font-medium text-right">{previewItem.alamat}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">WhatsApp:</span><span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Keperluan:</span><span className="text-slate-700 font-medium text-right">{previewItem.layanan}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Titik GPS:</span><span className="text-slate-700 font-mono font-medium text-right text-[10px]"><a href={`https://maps.google.com/?q=${previewItem.gps}`} target="_blank" rel="noreferrer" className="text-[#007AFF] hover:underline">{previewItem.gps}</a></span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Titik GPS:</span><span className="text-slate-700 font-mono font-medium text-right text-[10px]"><a href={`https://maps.google.com/?q=${previewItem.gps}`} target="_blank" rel="noreferrer" className={`${currentTheme.text} hover:underline`}>{previewItem.gps}</a></span></div>
               <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium text-[10px]">{previewItem.ipAddress}</span></div>
             </div>
 
             {previewItem.kesan && previewItem.kesan !== '-' && (
-              <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100">
-                <span className="text-xs text-[#003B73] font-bold block mb-1">Kesan / Pesan:</span>
+              <div className={`${currentTheme.lightBg} border ${currentTheme.lightBorder} rounded-2xl p-4`}>
+                <span className={`text-xs ${currentTheme.text} font-bold block mb-1`}>Kesan / Pesan:</span>
                 <p className="text-xs text-slate-700 italic leading-relaxed">{previewItem.kesan}</p>
               </div>
             )}
