@@ -965,7 +965,7 @@ export default function App() {
               </p>
             </div>
             <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
-              <span>SURVEI</span>
+              <span>BUKA</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
