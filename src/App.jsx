@@ -7,7 +7,7 @@ import {
   Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink, Palette
 } from 'lucide-react';
 
-// 1. IMPORT FIREBASE
+// 1. IMPORT FIREBASE (Koneksi Database Cloud)
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, onSnapshot, setDoc } from 'firebase/firestore';
 
@@ -33,142 +33,134 @@ try {
 }
 
 // ==========================================
-// KONFIGURASI TEMA APLIKASI (PERPADUAN 2 WARNA MATCHING)
+// KONFIGURASI TEMA APLIKASI (GRADIENT ELEGAN)
 // ==========================================
 const THEMES = {
   'biru': {
-    label: 'Biru (Navy & Royal)',
-    headerBg: 'bg-[#002D59]',
+    label: 'Biru (Navy & Royal Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#001E3D] to-[#003B73]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#0056B3]',
+    subHeaderBg: 'bg-gradient-to-r from-[#003B73] to-[#0056B3]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#002D59]',
+    footerBg: '#001E3D',
     footerText: 'text-blue-100',
     button: 'bg-[#007AFF] hover:bg-[#0062CC] text-white',
     text: 'text-[#007AFF]',
     border: 'focus:border-[#007AFF]',
     lightBg: 'bg-blue-50/60',
     lightBorder: 'border-blue-200',
-    hexHeader: '#002D59',
-    hexSub: '#0056B3'
+    hexHeader: '#001E3D'
   },
   'biru muda': {
-    label: 'Biru Muda (Ocean & Sky)',
-    headerBg: 'bg-[#0369A1]',
+    label: 'Biru Muda (Ocean Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#034A72] to-[#0284C7]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#0284C7]',
+    subHeaderBg: 'bg-gradient-to-r from-[#0284C7] to-[#38BDF8]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#0369A1]',
+    footerBg: '#034A72',
     footerText: 'text-sky-100',
     button: 'bg-[#0EA5E9] hover:bg-[#0284C7] text-white',
     text: 'text-[#0EA5E9]',
     border: 'focus:border-[#0EA5E9]',
     lightBg: 'bg-sky-50/60',
     lightBorder: 'border-sky-200',
-    hexHeader: '#0369A1',
-    hexSub: '#0284C7'
+    hexHeader: '#034A72'
   },
   'hijau': {
-    label: 'Hijau (Forest & Emerald)',
-    headerBg: 'bg-[#064E3B]',
+    label: 'Hijau (Forest & Emerald Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#022C22] to-[#064E3B]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#059669]',
+    subHeaderBg: 'bg-gradient-to-r from-[#064E3B] to-[#059669]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#064E3B]',
+    footerBg: '#022C22',
     footerText: 'text-emerald-100',
     button: 'bg-[#10B981] hover:bg-[#059669] text-white',
     text: 'text-[#10B981]',
     border: 'focus:border-[#10B981]',
     lightBg: 'bg-emerald-50/60',
     lightBorder: 'border-emerald-200',
-    hexHeader: '#064E3B',
-    hexSub: '#059669'
+    hexHeader: '#022C22'
   },
   'turquoise': {
-    label: 'Turquoise (Deep Teal & Turquoise)',
-    headerBg: 'bg-[#115E59]',
+    label: 'Turquoise (Deep Teal Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#042F2E] to-[#115E59]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#0D9488]',
+    subHeaderBg: 'bg-gradient-to-r from-[#115E59] to-[#0D9488]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#115E59]',
+    footerBg: '#042F2E',
     footerText: 'text-teal-100',
     button: 'bg-[#14B8A6] hover:bg-[#0D9488] text-white',
     text: 'text-[#14B8A6]',
     border: 'focus:border-[#14B8A6]',
     lightBg: 'bg-teal-50/60',
     lightBorder: 'border-teal-200',
-    hexHeader: '#115E59',
-    hexSub: '#0D9488'
+    hexHeader: '#042F2E'
   },
   'maron': {
-    label: 'Maron (Burgundy & Crimson)',
-    headerBg: 'bg-[#4C0519]',
+    label: 'Maron (Burgundy Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#2B030F] to-[#4C0519]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#9F1239]',
+    subHeaderBg: 'bg-gradient-to-r from-[#4C0519] to-[#9F1239]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#4C0519]',
+    footerBg: '#2B030F',
     footerText: 'text-rose-100',
     button: 'bg-[#E11D48] hover:bg-[#BE123C] text-white',
     text: 'text-[#E11D48]',
     border: 'focus:border-[#E11D48]',
     lightBg: 'bg-rose-50/60',
     lightBorder: 'border-rose-200',
-    hexHeader: '#4C0519',
-    hexSub: '#9F1239'
+    hexHeader: '#2B030F'
   },
   'dark-grey': {
-    label: 'Dark Grey (Charcoal & Slate)',
-    headerBg: 'bg-[#0F172A]',
+    label: 'Dark Grey (Charcoal Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#020617] to-[#0F172A]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#334155]',
+    subHeaderBg: 'bg-gradient-to-r from-[#0F172A] to-[#334155]',
     subHeaderText: 'text-white',
-    footerBg: 'bg-[#0F172A]',
+    footerBg: '#020617',
     footerText: 'text-slate-300',
     button: 'bg-[#475569] hover:bg-[#334155] text-white',
     text: 'text-[#475569]',
     border: 'focus:border-[#475569]',
     lightBg: 'bg-slate-100',
     lightBorder: 'border-slate-300',
-    hexHeader: '#0F172A',
-    hexSub: '#334155'
+    hexHeader: '#020617'
   },
   'putih': {
-    label: 'Putih Minimalis (Slate & Clean Light)',
-    headerBg: 'bg-[#334155]',
-    headerText: 'text-white',
-    subHeaderBg: 'bg-white',
-    subHeaderText: 'text-slate-800',
-    footerBg: 'bg-[#334155]',
-    footerText: 'text-slate-200',
+    label: 'Putih Minimalis (Clean Slate Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#CBD5E1] to-[#E2E8F0]',
+    headerText: 'text-slate-900',
+    subHeaderBg: 'bg-gradient-to-r from-[#FFFFFF] to-[#F8FAFC]',
+    subHeaderText: 'text-slate-900',
+    footerBg: '#CBD5E1',
+    footerText: 'text-slate-800',
     button: 'bg-[#0F172A] hover:bg-[#334155] text-white',
     text: 'text-[#0F172A]',
     border: 'focus:border-[#0F172A]',
-    lightBg: 'bg-slate-100',
-    lightBorder: 'border-slate-300',
-    hexHeader: '#334155',
-    hexSub: '#FFFFFF'
+    lightBg: 'bg-slate-50',
+    lightBorder: 'border-slate-200',
+    hexHeader: '#475569'
   },
   'hitam': {
-    label: 'Hitam (Obsidian & Jet Black)',
-    headerBg: 'bg-[#000000]',
+    label: 'Hitam (Obsidian Gradient)',
+    headerBg: 'bg-gradient-to-r from-[#000000] to-[#121212]',
     headerText: 'text-white',
-    subHeaderBg: 'bg-[#18181B]',
-    subHeaderText: 'text-slate-100',
-    footerBg: 'bg-[#000000]',
+    subHeaderBg: 'bg-gradient-to-r from-[#121212] to-[#27272A]',
+    subHeaderText: 'text-zinc-100',
+    footerBg: '#000000',
     footerText: 'text-zinc-400',
-    button: 'bg-[#27272A] hover:bg-[#3F3F46] text-white',
+    button: 'bg-[#3F3F46] hover:bg-[#52525B] text-white',
     text: 'text-[#18181B]',
     border: 'focus:border-[#18181B]',
     lightBg: 'bg-zinc-100',
     lightBorder: 'border-zinc-300',
-    hexHeader: '#000000',
-    hexSub: '#18181B'
+    hexHeader: '#000000'
   }
 };
 
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
-  if (imageData.startsWith('data:')) return imageData;
+  if (imageData.startsWith('data:') || imageData.startsWith('http')) return imageData;
   if (imageData.includes('drive.google.com') || imageData.includes('googleusercontent.com')) {
     try {
       let fileId = '';
@@ -199,7 +191,6 @@ const translateDateToIndo = (dateStr) => {
   return res;
 };
 
-// --- LOGO ---
 function ImmigrationLogo({ className = "w-10 h-10" }) {
   return (
     <img 
@@ -248,9 +239,9 @@ export default function App() {
   const [signatureData, setSignatureData] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user');
-  const [cameraError, setCameraError] = useState('');
 
-  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbyH36FxJxLJOmkR79Qj2osgF-jNXLBBfUiNAWqs2BvakGxhkW_0iwRBUJdyH1EXJU59/exec");
+  // UPDATE LINK SCRIPT GOOGLE APPS SCRIPT DI SINI
+  const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbznj6AU5PMVPxtsjbQ1Whx-LXOOIrEW-0PAVgKr6zgCfFsZoKYlGMXf1sQdIXdNEKJq/exec");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -358,21 +349,51 @@ export default function App() {
   };
 
   const startCamera = async () => {
-    setCameraError(''); setIsCameraActive(true);
-    try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false }); if (videoRef.current) videoRef.current.srcObject = stream; } 
-    catch (err) { setCameraError('Izin akses kamera ditolak.'); }
+    try { 
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing, width: 640, height: 480 }, audio: false }); 
+      if (videoRef.current) videoRef.current.srcObject = stream; 
+      setIsCameraActive(true);
+    } 
+    catch (err) { showToast('Izin akses kamera ditolak.', 'error'); }
   };
+
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) { videoRef.current.srcObject.getTracks().forEach(t => t.stop()); videoRef.current.srcObject = null; }
+    if (videoRef.current && videoRef.current.srcObject) { 
+      videoRef.current.srcObject.getTracks().forEach(t => t.stop()); 
+      videoRef.current.srcObject = null; 
+    }
     setIsCameraActive(false);
   };
+
   useEffect(() => { return () => stopCamera(); }, [viewMode]);
-  const switchCamera = () => { stopCamera(); setCameraFacing(p => p === 'user' ? 'environment' : 'user'); setTimeout(() => startCamera(), 300); };
+
+  const switchCamera = () => { 
+    stopCamera(); 
+    setCameraFacing(p => p === 'user' ? 'environment' : 'user'); 
+    setTimeout(() => startCamera(), 300); 
+  };
+
+  // KOMPRESI OTOMATIS: Lebar maks 400px & kualitas JPEG 0.5 agar aman dikirim ke Drive
   const capturePhoto = () => {
-    if (!videoRef.current) return; const video = videoRef.current; const canvas = canvasPhotoRef.current || document.createElement('canvas');
-    const scale = 480 / video.videoWidth; canvas.width = 480; canvas.height = video.videoHeight * scale; const ctx = canvas.getContext('2d');
-    if (cameraFacing === 'user') { ctx.translate(canvas.width, 0); ctx.scale(-1, 1); } ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    setPhotoData(canvas.toDataURL('image/jpeg', 0.65)); stopCamera(); showToast('Foto ditangkap!', 'success');
+    if (!videoRef.current) return; 
+    const video = videoRef.current; 
+    const canvas = canvasPhotoRef.current || document.createElement('canvas');
+    
+    const maxWidth = 400;
+    const scale = maxWidth / video.videoWidth;
+    canvas.width = maxWidth; 
+    canvas.height = video.videoHeight * scale; 
+    
+    const ctx = canvas.getContext('2d');
+    if (cameraFacing === 'user') { 
+      ctx.translate(canvas.width, 0); 
+      ctx.scale(-1, 1); 
+    } 
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    setPhotoData(canvas.toDataURL('image/jpeg', 0.5)); 
+    stopCamera(); 
+    showToast('Foto berhasil ditangkap & dikompres!', 'success');
   };
   
   const initSignaturePad = () => {
@@ -381,9 +402,16 @@ export default function App() {
     canvas.width = rect.width * 2; canvas.height = rect.height * 2; ctx.scale(2, 2);
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   };
+
   useEffect(() => {
-    if (viewMode === 'form' && !signatureData) { initSignaturePad(); const handleResize = () => { if(!signatureData) initSignaturePad(); }; window.addEventListener('resize', handleResize); return () => window.removeEventListener('resize', handleResize); }
+    if (viewMode === 'form' && !signatureData) { 
+      initSignaturePad(); 
+      const handleResize = () => { if(!signatureData) initSignaturePad(); }; 
+      window.addEventListener('resize', handleResize); 
+      return () => window.removeEventListener('resize', handleResize); 
+    }
   }, [viewMode, signatureData]);
+
   const getCanvasCoords = (e, c) => { const rect = c.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; };
   const startDrawing = (e) => { const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.beginPath(); ctx.moveTo(x, y); isDrawingRef.current = true; };
   const draw = (e) => { if (!isDrawingRef.current) return; e.preventDefault(); const c = signatureCanvasRef.current; if (!c) return; const ctx = c.getContext('2d'); const { x, y } = getCanvasCoords(e, c); ctx.lineTo(x, y); ctx.stroke(); };
@@ -412,7 +440,7 @@ export default function App() {
       namaKegiatan: eventConfig.namaKegiatan, lokasi: eventConfig.lokasi,
       ipAddress: userIpAddress, gps: gpsLocation, ...formData,
       kesan: formData.kesan || '-', layanan: finalKeperluan,
-      photo: photoData, signature: signatureData, driveStatus: 'Mengunggah ke Cloud...'
+      photo: photoData, signature: signatureData, driveStatus: 'Mengunggah ke Cloud / Drive...'
     };
 
     if (scriptUrl) {
@@ -424,11 +452,23 @@ export default function App() {
         };
         const response = await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
         const resJson = await response.json();
-        if (resJson.status === 'success') newGuest.driveStatus = 'Tersimpan di Google Server'; else newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
-      } catch (err) { newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)'; }
+        if (resJson.status === 'success') {
+          newGuest.driveStatus = 'Tersimpan Aman di Google Drive';
+          // Ganti Base64 dengan URL Drive agar UI ringan
+          if (resJson.photoUrl && resJson.photoUrl !== '-') newGuest.photo = resJson.photoUrl; 
+          if (resJson.signUrl && resJson.signUrl !== '-') newGuest.signature = resJson.signUrl; 
+        } else {
+          newGuest.driveStatus = 'Gagal upload (Tersimpan Lokal)';
+        }
+      } catch (err) { 
+        newGuest.driveStatus = 'Tersimpan Lokal (Koneksi Gagal)'; 
+      }
     }
 
-    setGuestList((prev) => [newGuest, ...prev]); setLastSubmittedGuest(newGuest); setShowSuccessModal(true); setIsSubmitting(false);
+    setGuestList((prev) => [newGuest, ...prev]); 
+    setLastSubmittedGuest(newGuest); 
+    setShowSuccessModal(true); 
+    setIsSubmitting(false);
   };
   
   const handleOpenSurvei = () => {
@@ -438,26 +478,40 @@ export default function App() {
     setSignatureData(null); 
     clearSignature();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    const targetUrl = eventConfig.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie';
-    window.location.href = targetUrl;
+    window.location.href = eventConfig.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie';
   };
 
   const handleDeleteSingleGuest = async (guestId) => {
     if (!window.confirm("Yakin ingin menghapus data tamu ini secara PERMANEN?")) return;
     setIsSyncing(true);
     try {
-      if (scriptUrl) { await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete', id: guestId }) }); }
-      setGuestList(prev => prev.filter(g => g.id !== guestId)); setPreviewItem(null); showToast('Terhapus permanen.', 'success');
-    } catch (err) { showToast('Gagal menghapus dari server.', 'error'); } finally { setIsSyncing(false); }
+      if (scriptUrl) { 
+        await fetch(scriptUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete', id: guestId }) }); 
+      }
+      setGuestList(prev => prev.filter(g => g.id !== guestId)); 
+      setPreviewItem(null); 
+      showToast('Terhapus permanen.', 'success');
+    } catch (err) { 
+      showToast('Gagal menghapus dari server.', 'error'); 
+    } finally { 
+      setIsSyncing(false); 
+    }
   };
 
   const handleRefreshSync = async () => {
     setIsSyncing(true);
     try {
-      const response = await fetch(scriptUrl); const remoteGuestList = await response.json();
-      if (Array.isArray(remoteGuestList)) { setGuestList(remoteGuestList); showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success'); }
-    } catch (err) { showToast('Gagal terhubung ke cloud.', 'error'); } finally { setIsSyncing(false); }
+      const response = await fetch(scriptUrl); 
+      const remoteGuestList = await response.json();
+      if (Array.isArray(remoteGuestList)) { 
+        setGuestList(remoteGuestList); 
+        showToast(`Sinkronisasi sukses! ${remoteGuestList.length} tamu dimuat.`, 'success'); 
+      }
+    } catch (err) { 
+      showToast('Gagal terhubung ke cloud.', 'error'); 
+    } finally { 
+      setIsSyncing(false); 
+    }
   };
 
   const getEventDateRange = () => {
@@ -466,9 +520,7 @@ export default function App() {
     if (dates.length === 0) return "-";
     const uniqueDates = [...new Set(dates)];
     if (uniqueDates.length === 1) return uniqueDates[0];
-    const oldestDate = uniqueDates[uniqueDates.length - 1];
-    const newestDate = uniqueDates[0];
-    return `${oldestDate} - ${newestDate}`;
+    return `${uniqueDates[uniqueDates.length - 1]} - ${uniqueDates[0]}`;
   };
 
   const handleExecutePDF = (mode) => {
@@ -520,16 +572,8 @@ export default function App() {
     `;
 
     let tablesContent = '';
-
     if (mode === 'all') {
-      tablesContent = `
-        <table>
-          <thead>${thHtml}</thead>
-          <tbody>
-            ${reversedGuestList.map((g, idx) => generateRowHtml(g, idx)).join('')}
-          </tbody>
-        </table>
-      `;
+      tablesContent = `<table><thead>${thHtml}</thead><tbody>${reversedGuestList.map((g, idx) => generateRowHtml(g, idx)).join('')}</tbody></table>`;
     } else {
       const groupedData = {};
       reversedGuestList.forEach(g => {
@@ -537,17 +581,8 @@ export default function App() {
         if (!groupedData[dStr]) groupedData[dStr] = [];
         groupedData[dStr].push(g);
       });
-
       Object.keys(groupedData).forEach(dateStr => {
-        tablesContent += `
-          <h3 class="date-header">Daftar Pengunjung - ${dateStr}</h3>
-          <table>
-            <thead>${thHtml}</thead>
-            <tbody>
-              ${groupedData[dateStr].map((g, idx) => generateRowHtml(g, idx)).join('')}
-            </tbody>
-          </table>
-        `;
+        tablesContent += `<h3 class="date-header">Daftar Pengunjung - ${dateStr}</h3><table><thead>${thHtml}</thead><tbody>${groupedData[dateStr].map((g, idx) => generateRowHtml(g, idx)).join('')}</tbody></table>`;
       });
     }
 
@@ -567,18 +602,10 @@ export default function App() {
           th, td { border: 1px solid #94a3b8; padding: 6px 8px; font-size: 9pt; text-align: left; vertical-align: middle; word-wrap: break-word; }
           th { background-color: ${hexTheme}; color: white; text-align: center; font-weight: bold; font-size: 9.5pt; }
           .center { text-align: center; }
-          
           .img-container { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f8fafc; }
           .img-thumbnail { width: 100%; height: 100%; object-fit: contain; display: block; }
-          
           .sign-thumbnail { width: 100%; max-width: 70px; height: 35px; object-fit: contain; display: block; margin: 0 auto; background-color: #fff; }
-          @media print {
-            body { margin: 0; }
-            button { display: none; }
-            .date-header { page-break-after: avoid; }
-            table { page-break-inside: auto; }
-            tr { page-break-inside: avoid; page-break-after: auto; }
-          }
+          @media print { body { margin: 0; } button { display: none; } }
         </style>
       </head>
       <body>
@@ -587,20 +614,11 @@ export default function App() {
           <p><b>${eventConfig.namaKegiatan} | Lokasi: ${eventConfig.lokasi}</b></p>
           <p style="font-weight: bold; color: ${hexTheme}; font-size: 9.5pt; margin-top: 6px;">Periode: ${dateRangeStr}</p>
         </div>
-        
         ${tablesContent}
-
-        <script>
-          window.onload = function() {
-            setTimeout(() => {
-              window.print();
-            }, 600);
-          };
-        </script>
+        <script>window.onload = function() { setTimeout(() => { window.print(); }, 600); };</script>
       </body>
       </html>
     `;
-
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };
@@ -613,7 +631,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased">
       {toastMessage && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : toastMessage.type === 'error' ? 'bg-white/95 text-rose-800 border-rose-200' : 'bg-white/95 text-slate-800 border-slate-200'}`}>
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
           <span>{toastMessage.msg}</span>
         </div>
@@ -621,34 +639,35 @@ export default function App() {
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
-        {/* CONTAINER HEADER + SUB-HEADER MENYATU (TANPA GAP) */}
-        <div className="rounded-3xl overflow-hidden shadow-md border border-slate-200/60">
-          {/* HEADER UTAMA (WARNA LEBIH TUA) */}
-          <div className={`${currentTheme.headerBg} ${currentTheme.headerText} p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors duration-300`}>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <ImmigrationLogo className="w-10 h-12 sm:w-12 sm:h-14" />
+        {/* CONTAINER HEADER & SUB-HEADER MENYATU DENGAN GRADIENT */}
+        <div className="rounded-3xl overflow-hidden shadow-xl border border-black/5 flex flex-col">
+          
+          {/* HEADER UTAMA */}
+          <div className={`${currentTheme.headerBg} ${currentTheme.headerText} p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all duration-300 z-10 relative`}>
+            <div className="flex items-center gap-2.5 sm:gap-3.5">
+              <ImmigrationLogo className="w-8 h-10 sm:w-9 sm:h-11" />
               <div className="flex flex-col">
-                <h1 className="text-xs sm:text-sm font-bold tracking-wider uppercase opacity-90">
+                <h1 className="text-[11px] sm:text-xs font-bold tracking-widest uppercase opacity-95">
                   KANTOR IMIGRASI KELAS II TPI KEDIRI
                 </h1>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/10">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/20 text-xs font-mono font-medium text-white/90 border border-white/10">
+            <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/25 text-white/90 border border-white/10 text-[11px] sm:text-xs font-mono font-semibold backdrop-blur-md">
                 <Clock className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                 <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
               </div>
               {viewMode === 'form' ? (
-                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
+                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20 shadow-sm">
                   <Lock className="w-3.5 h-3.5" /><span>Admin</span>
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
+                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
                     <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
                   </button>
-                  <button onClick={handleAdminLogout} className="p-2 bg-rose-500/80 hover:bg-rose-600 text-white rounded-xl transition">
+                  <button onClick={handleAdminLogout} className="p-1.5 bg-rose-500/90 hover:bg-rose-600 text-white rounded-xl transition shadow-sm">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
@@ -656,16 +675,20 @@ export default function App() {
             </div>
           </div>
 
-          {/* SUB-HEADER INFO PAMERAN (WARNA LEBIH TERANG / MUDA) */}
-          <div className={`${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} p-5 sm:p-6 transition-colors duration-300 flex flex-col justify-center text-center sm:text-left border-t border-black/5`}>
-            <h2 className="text-xl sm:text-2xl font-black uppercase tracking-tight leading-tight mb-1.5">
-              {eventConfig.namaKegiatan}
-            </h2>
-            <div className="flex items-center justify-center sm:justify-start gap-1.5 opacity-90">
-              <MapPin className="w-4 h-4 flex-shrink-0" />
-              <p className="text-xs sm:text-sm font-medium tracking-wide">
-                {eventConfig.lokasi}
-              </p>
+          {/* SUB-HEADER INFO PAMERAN */}
+          <div className={`${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} py-10 px-5 sm:py-14 sm:px-8 transition-all duration-300 flex flex-col items-center justify-center border-t border-white/10`}>
+            <div className="w-full max-w-2xl flex flex-col">
+              <div className="text-center mb-5 sm:mb-6">
+                <h2 className="font-extrabold text-2xl sm:text-4xl uppercase tracking-wide drop-shadow-sm leading-snug">
+                  {eventConfig.namaKegiatan}
+                </h2>
+              </div>
+              <div className="flex items-center justify-start gap-2.5 sm:gap-3 opacity-95 w-full md:pl-8">
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 drop-shadow-sm" />
+                <p className="text-sm sm:text-base font-semibold tracking-wide flex items-center leading-none pt-0.5 drop-shadow-sm">
+                  {eventConfig.lokasi}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -694,7 +717,6 @@ export default function App() {
                   <label className="text-xs font-semibold text-slate-700">Alamat / Instansi <span className="text-rose-500">*</span></label>
                   <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                 </div>
-
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700">Nomor WhatsApp <span className="text-rose-500">*</span></label>
                   <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
@@ -718,7 +740,6 @@ export default function App() {
                     <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className={`w-full px-4 py-3 rounded-2xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                   </div>
                 )}
-
                 <div className="space-y-1.5 pt-2">
                   <label className="text-xs font-semibold text-slate-700">Kesan/Pesan <span className="text-slate-400 font-normal">(Opsional)</span></label>
                   <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition resize-none h-20`} />
@@ -733,7 +754,7 @@ export default function App() {
                   </div>
                   <div className="relative aspect-video w-full bg-[#E5E5EA] rounded-2xl overflow-hidden border border-slate-200/80 flex items-center justify-center shadow-inner">
                     {isCameraActive && <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraFacing === 'user' ? '-scale-x-100' : ''}`} />}
-                    {!isCameraActive && photoData && <img src={photoData} alt="Foto" className="w-full h-full object-cover" />}
+                    {!isCameraActive && photoData && <img src={resolveImageSrc(photoData)} alt="Foto" className="w-full h-full object-cover" />}
                     {!isCameraActive && !photoData && (
                       <div className="flex flex-col items-center justify-center p-4 text-center space-y-1.5">
                         <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"><Camera className="w-5 h-5 text-slate-400" /></div>
@@ -766,7 +787,7 @@ export default function App() {
                 </div>
 
                 <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
-                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
+                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah ke Drive...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
             </form>
@@ -791,7 +812,7 @@ export default function App() {
                 <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                   <div>
                     <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><List className={`w-4 h-4 ${currentTheme.text}`} />Rekapitulasi Pengunjung ({guestList.length})</h2>
-                    <p className="text-xs text-slate-500 font-medium">Data sinkron otomatis dengan Google Spreadsheet Cloud</p>
+                    <p className="text-xs text-slate-500 font-medium">Foto aman tersimpan langsung di Google Drive Cloud</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-56">
@@ -848,12 +869,10 @@ export default function App() {
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
-                  
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
                     <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
                   </div>
-
                   <div className="space-y-1.5 border-t border-slate-100 pt-4 mt-2">
                     <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Tema Warna Aplikasi</label>
                     <div className="relative">
@@ -865,7 +884,6 @@ export default function App() {
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
-
                   <button type="submit" className={`mt-2 flex items-center gap-2 px-5 py-3 ${currentTheme.button} text-white rounded-2xl font-bold text-xs shadow-sm transition`}><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
                 </form>
               </div>
@@ -874,12 +892,12 @@ export default function App() {
         )}
       </div>
 
-      {/* FOOTER APLIKASI (WARNA DENGAN WARNA HEADER) */}
-      <footer className={`mt-auto ${currentTheme.footerBg} ${currentTheme.footerText} py-6 px-4 text-center border-t border-black/10 transition-colors duration-300`}>
+      {/* FOOTER APLIKASI */}
+      <footer className={`mt-auto py-6 px-4 text-center transition-colors duration-300 border-t border-black/10`} style={{ backgroundColor: currentTheme.hexHeader, color: '#FFFFFF' }}>
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
-          <p className="font-black tracking-wider uppercase">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
-          <p className="font-medium leading-relaxed opacity-90">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
-          <p className="text-[10px] font-mono pt-1 opacity-75">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
+          <p className="font-black tracking-wider uppercase opacity-95">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
+          <p className="font-medium leading-relaxed opacity-85">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
+          <p className="text-[10px] font-mono pt-1 opacity-70">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
         </div>
       </footer>
 
@@ -897,7 +915,6 @@ export default function App() {
         </div>
       )}
 
-      {/* MODAL PILIHAN FORMAT LAPORAN PDF */}
       {showPdfModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
@@ -924,12 +941,9 @@ export default function App() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-              <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.</p>
+              <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>Mohon meluangkan waktu sebentar untuk memberikan ulasan pada Google Review kami berikut:</p>
             </div>
-            <button 
-              onClick={handleOpenSurvei} 
-              className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}
-            >
+            <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
               <span>SURVEI</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
