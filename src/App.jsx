@@ -158,16 +158,21 @@ const THEMES = {
   }
 };
 
+// ==========================================
+// FUNGSI PERBAIKAN RENDER GAMBAR (BASE64 & DRIVE)
+// ==========================================
 const resolveImageSrc = (imageData) => {
   if (!imageData) return "";
-  if (imageData.startsWith('data:') || imageData.startsWith('http')) return imageData;
+  if (imageData.startsWith('data:')) return imageData;
   if (imageData.includes('drive.google.com') || imageData.includes('googleusercontent.com')) {
     try {
       let fileId = '';
       if (imageData.includes('/d/')) fileId = imageData.split('/d/')[1].split('/')[0];
       else if (imageData.includes('id=')) fileId = imageData.split('id=')[1].split('&')[0];
       if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}`;
-    } catch (e) { return imageData; }
+    } catch (e) { 
+      return imageData; 
+    }
   }
   return imageData;
 };
@@ -209,11 +214,13 @@ export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
 
+  // PENAMBAHAN DEFAULT TEKS SURVEI
   const [eventConfig, setEventConfig] = useState(() => {
     const saved = localStorage.getItem('imigrasi_event_config');
     return saved ? JSON.parse(saved) : {
       namaKegiatan: 'STAND PAMERAN UMKM FEST',
       lokasi: 'Simpang Lima Gumul Kabupaten Kediri',
+      teksSurvei: 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
       surveiUrl: 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
       tema: 'biru'
     };
@@ -240,7 +247,6 @@ export default function App() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user');
 
-  // UPDATE LINK SCRIPT GOOGLE APPS SCRIPT DI SINI
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbznj6AU5PMVPxtsjbQ1Whx-LXOOIrEW-0PAVgKr6zgCfFsZoKYlGMXf1sQdIXdNEKJq/exec");
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -298,6 +304,7 @@ export default function App() {
           const mergedData = {
             namaKegiatan: data.namaKegiatan || 'STAND PAMERAN UMKM FEST',
             lokasi: data.lokasi || 'Simpang Lima Gumul Kabupaten Kediri',
+            teksSurvei: data.teksSurvei || 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
             surveiUrl: data.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
             tema: data.tema || 'biru'
           };
@@ -332,7 +339,7 @@ export default function App() {
 
   const handleSaveEventConfig = async (e) => {
     e.preventDefault();
-    if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim() || !tempEventConfig.surveiUrl.trim()) { 
+    if (!tempEventConfig.namaKegiatan.trim() || !tempEventConfig.lokasi.trim() || !tempEventConfig.teksSurvei.trim() || !tempEventConfig.surveiUrl.trim()) { 
       showToast('Semua kolom pengaturan harus diisi!', 'error'); 
       return; 
     }
@@ -373,7 +380,6 @@ export default function App() {
     setTimeout(() => startCamera(), 300); 
   };
 
-  // KOMPRESI OTOMATIS: Lebar maks 400px & kualitas JPEG 0.5 agar aman dikirim ke Drive
   const capturePhoto = () => {
     if (!videoRef.current) return; 
     const video = videoRef.current; 
@@ -454,7 +460,6 @@ export default function App() {
         const resJson = await response.json();
         if (resJson.status === 'success') {
           newGuest.driveStatus = 'Tersimpan Aman di Google Drive';
-          // Ganti Base64 dengan URL Drive agar UI ringan
           if (resJson.photoUrl && resJson.photoUrl !== '-') newGuest.photo = resJson.photoUrl; 
           if (resJson.signUrl && resJson.signUrl !== '-') newGuest.signature = resJson.signUrl; 
         } else {
@@ -869,6 +874,13 @@ export default function App() {
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
                   <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
+                  
+                  {/* PENAMBAHAN FIELD TEKS SURVEI */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Teks Ajakan Survei (Pop-up Berhasil)</label>
+                    <input type="text" required value={tempEventConfig.teksSurvei || ''} onChange={(e) => setTempEventConfig({ ...tempEventConfig, teksSurvei: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                  </div>
+                  
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
                     <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
@@ -941,7 +953,12 @@ export default function App() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
-              <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>Mohon meluangkan waktu sebentar untuk memberikan ulasan pada Google Review kami berikut:</p>
+              
+              {/* PENERAPAN TEKS SURVEI DINAMIS */}
+              <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>
+                {eventConfig.teksSurvei}
+              </p>
+
             </div>
             <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
               <span>SURVEI</span>
