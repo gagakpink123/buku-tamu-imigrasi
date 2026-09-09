@@ -211,6 +211,15 @@ export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
 
+  // STATE ANIMASI MASUK APLIKASI
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    // Memicu animasi masuk secara halus setelah komponen dirender
+    const timer = setTimeout(() => setIsLoaded(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [eventConfig, setEventConfig] = useState(() => {
     const saved = localStorage.getItem('imigrasi_event_config');
     return saved ? JSON.parse(saved) : {
@@ -351,7 +360,6 @@ export default function App() {
     }
   };
 
-  // PERBAIKAN FUNGSI KAMERA AGAR SELALU RESPONSIF DI HALAMAN USER
   const startCamera = async () => {
     try {
       setIsCameraActive(true);
@@ -644,7 +652,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased">
+    <div className={`min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased transition-all duration-700 ease-out transform ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
       {toastMessage && (
         <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
@@ -802,7 +810,7 @@ export default function App() {
                 </div>
 
                 <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
-                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan..</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
+                  {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah ke Drive...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
             </form>
@@ -958,14 +966,14 @@ export default function App() {
           <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-8 h-8" /></div>
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[#1C1C1E]">Kehadiran Berhasil Disimpan</h3>
+              <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
               <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>
                 {eventConfig.teksSurvei}
               </p>
             </div>
             <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
-              <span>ULAS KAMI</span>
+              <span>SURVEI</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
