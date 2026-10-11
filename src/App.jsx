@@ -133,6 +133,7 @@ const THEMES = {
     headerText: 'text-slate-900',
     subHeaderBg: 'bg-gradient-to-r from-[#FFFFFF] to-[#F8FAFC]',
     subHeaderText: 'text-slate-900',
+    subHeaderLight: true,
     footerBg: '#CBD5E1',
     footerText: 'text-slate-800',
     button: 'bg-[#0F172A] hover:bg-[#334155] text-white',
@@ -211,8 +212,8 @@ function ImmigrationLogo({ className = "w-10 h-10" }) {
 // ==========================================
 // DESIGN SYSTEM RINGAN (font, token, animasi)
 // ==========================================
-const BANNER_RATIO = 4; // lebar : tinggi sub-header desktop (4:1)
-const BANNER_W = 1600;  // lebar maksimum hasil kompres (px)
+const BANNER_RATIO = 16 / 9; // sub-header tetap 16:9 di desktop dan HP
+const BANNER_W = 1280;  // lebar maksimum hasil kompres (px)
 const PHOTO_W = 800, PHOTO_H = 600; // foto pengunjung 4:3
 
 const GLOBAL_CSS = `
@@ -230,6 +231,24 @@ body{background:#F4F6FA;-webkit-tap-highlight-color:transparent}
 .sheet[data-state=closed] .sheet-card{animation:pop-out .2s ease-in both}
 @keyframes fade-soft{from{opacity:0}to{opacity:1}}
 @keyframes fade-out{to{opacity:0}}
+.sub-wrap{container-type:inline-size}
+.sub-title{font-size:clamp(1rem,4.6vw,2.4rem);font-size:clamp(1rem,5.4cqw,2.75rem);line-height:1.2;letter-spacing:.02em;margin-bottom:.4em;text-wrap:balance}
+.sub-loc{font-size:clamp(.75rem,2.6vw,1rem);font-size:clamp(.75rem,2.5cqw,1.125rem);line-height:1.35;text-wrap:balance}
+.sub-loc-icon{width:1.25em;height:1.25em}
+.splash{transition:transform .85s cubic-bezier(.76,0,.24,1);will-change:transform}
+.splash[data-state=out]{transform:translateY(-100%)}
+.splash-content{animation:splash-in .8s cubic-bezier(.22,1,.36,1) both;transition:opacity .35s ease,transform .5s ease}
+.splash[data-state=out] .splash-content{opacity:0;transform:translateY(-18px)}
+.splash-name{font-size:.9375rem;font-weight:600;color:rgba(255,255,255,.88);text-align:center;padding:0 24px}
+.splash-bar{display:block;width:120px;height:2px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}
+.splash-bar i{display:block;height:100%;background:#fff;transform-origin:left;animation:splash-bar 1.1s cubic-bezier(.65,0,.35,1) both}
+@keyframes splash-in{from{opacity:0;transform:translateY(14px) scale(.96)}}
+@keyframes splash-bar{from{transform:scaleX(0)}}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+@keyframes page-out{to{opacity:0}}
+.is-loading .rise{opacity:0}
+.is-ready .rise{animation:rise .7s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--d,0ms)}
+.is-leaving{animation:page-out .38s ease-in both}
 @keyframes banner-in{from{opacity:0}}
 @keyframes pop-in{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes pop-out{to{opacity:0;transform:translateY(8px) scale(.97)}}
@@ -388,7 +407,7 @@ function Cropper({ src, ratio, onCancel, onDone, btn }) {
     ctx.imageSmoothingQuality = 'high'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, ow, oh);
     ctx.drawImage(img, cx * nw - sw / 2, cy * nh - sh / 2, sw, sh, 0, 0, ow, oh);
     let q = 0.82, out = c.toDataURL('image/jpeg', q);
-    while (out.length > 260000 && q > 0.5) { q -= 0.08; out = c.toDataURL('image/jpeg', q); }
+    while (out.length > 300000 && q > 0.5) { q -= 0.08; out = c.toDataURL('image/jpeg', q); }
     onDone(out);
   };
 
@@ -403,7 +422,7 @@ function Cropper({ src, ratio, onCancel, onDone, btn }) {
         {ready && <img src={src} alt="" draggable={false} className="absolute max-w-none" style={{ width: dw, height: dh, left: box.w / 2 - cx * dw, top: box.h / 2 - cy * dh }} />}
         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/40" />
       </div>
-      <p className="mt-2 text-xs text-slate-500">Geser gambar untuk mengatur posisi. Rasio 4:1 mengikuti ukuran sub-header.</p>
+      <p className="mt-2 text-xs text-slate-500">Geser gambar untuk mengatur posisi. Rasio 16:9 mengikuti ukuran sub-header.</p>
       <label className="mt-2 flex items-center gap-3 text-[13px] font-semibold text-slate-700">Zoom
         <input type="range" min="1" max="3" step="0.01" value={view.zoom} onChange={(e) => setView((v) => ({ ...v, zoom: +e.target.value }))} className="h-11 flex-1 accent-slate-900" />
       </label>
@@ -419,13 +438,31 @@ export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
 
-  // STATE ANIMASI MASUK APLIKASI
-  const [isLoaded, setIsLoaded] = useState(false);
+  // ANIMASI MUAT HALAMAN: splash masuk -> keluar, lalu konten naik bertahap
+  const [phase, setPhase] = useState('loading'); // loading -> leaving -> done
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    // Memicu animasi masuk secara halus setelah komponen dirender
-    const timer = setTimeout(() => setIsLoaded(true), 50);
-    return () => clearTimeout(timer);
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const t0 = Date.now();
+    let alive = true;
+    const fontsReady = Promise.race([document.fonts?.ready ?? Promise.resolve(), new Promise((r) => setTimeout(r, 2500))]);
+    fontsReady.then(() => {
+      if (alive) setTimeout(() => alive && setPhase('leaving'), reduce ? 0 : Math.max(0, 1200 - (Date.now() - t0)));
+    });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'leaving') return;
+    const t = setTimeout(() => setPhase('done'), 900);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) setLeaving(false); };
+    window.addEventListener('pageshow', onShow);
+    return () => window.removeEventListener('pageshow', onShow);
   }, []);
 
   const [eventConfig, setEventConfig] = useState(() => {
@@ -571,7 +608,7 @@ export default function App() {
   };
 
   // Kunci scroll halaman saat ada pop-up (pop-up tidak bisa bergeser)
-  const anyModal = showLoginModal || showPdfModal || showSuccessModal || !!previewItem || showCamera || !!cropSrc;
+  const anyModal = showLoginModal || showPdfModal || showSuccessModal || !!previewItem || showCamera || !!cropSrc || phase !== 'done';
   useEffect(() => {
     document.body.style.overflow = anyModal ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
@@ -659,7 +696,9 @@ export default function App() {
     setSignatureData(null); 
     clearSignature();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    window.location.href = eventConfig.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie';
+    const surveyUrl = eventConfig.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie';
+    setLeaving(true);
+    setTimeout(() => { window.location.href = surveyUrl; }, 380);
   };
 
   const handleDeleteSingleGuest = async (guestId) => {
@@ -809,9 +848,27 @@ export default function App() {
     g.whatsapp.includes(searchQuery) || g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Scrim lembut di belakang teks sub-header agar kontras terjaga (>= 4.5:1) di semua tema & opasitas gambar
+  const subLight = !!currentTheme.subHeaderLight;
+  const subHasImg = !!eventConfig.bannerImage;
+  const subOp = (eventConfig.bannerOpacity ?? 55) / 100;
+  const scrimRGB = subLight ? '255,255,255' : '0,0,0';
+  const scrimA = subLight ? (subHasImg ? Math.min(0.7, 0.4 + 0.3 * subOp) : 0) : (subHasImg ? Math.min(0.62, 0.38 + 0.22 * subOp) : 0.36);
+
   return (
-    <div className={`app-root min-h-[100dvh] flex flex-col antialiased transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`app-root min-h-[100dvh] flex flex-col antialiased ${phase === 'loading' ? 'is-loading' : 'is-ready'}${leaving ? ' is-leaving' : ''}`}>
       <GlobalStyles />
+      {phase !== 'done' && (
+        <Portal>
+          <div className="splash fixed inset-0 z-[100] flex items-center justify-center" data-state={phase === 'leaving' ? 'out' : 'in'} style={{ background: currentTheme.hexHeader }} aria-hidden="true">
+            <div className="splash-content flex flex-col items-center gap-5">
+              <ImmigrationLogo className="h-20 w-16" />
+              <p className="splash-name">Kantor Imigrasi Kelas II TPI Kediri</p>
+              <span className="splash-bar"><i /></span>
+            </div>
+          </div>
+        </Portal>
+      )}
       {toastMessage && (
         <Portal><div role="status" className={`fade-soft fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
@@ -822,7 +879,7 @@ export default function App() {
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
         {/* CONTAINER HEADER & SUB-HEADER MENYATU DENGAN GRADIENT */}
-        <div className="rounded-2xl overflow-hidden shadow-xl border border-black/5 flex flex-col">
+        <div className="rise rounded-2xl overflow-hidden shadow-xl border border-black/5 flex flex-col" style={{ '--d': '80ms' }}>
           
           {/* HEADER UTAMA */}
           <div className={`${currentTheme.headerBg} ${currentTheme.headerText} p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all duration-300 z-10 relative`}>
@@ -857,27 +914,19 @@ export default function App() {
             </div>
           </div>
 
-          {/* SUB-HEADER INFO PAMERAN */}
-          <div className={`relative isolate overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} py-10 px-5 sm:py-14 sm:px-8 flex flex-col items-center justify-center border-t border-white/10`}>
-            {eventConfig.bannerImage && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: (eventConfig.bannerOpacity ?? 55) / 100 }} />}
-            <div className="w-full max-w-2xl flex flex-col">
-              <div className="text-center mb-5 sm:mb-6">
-                <h2 className="font-extrabold text-2xl sm:text-4xl uppercase tracking-wide drop-shadow-sm leading-snug">
-                  {eventConfig.namaKegiatan}
-                </h2>
-              </div>
-              <div className="flex items-center justify-center gap-2.5 sm:gap-3 w-full">
-                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 drop-shadow-sm" />
-                <p className="text-sm sm:text-base font-semibold tracking-wide flex items-center leading-none pt-0.5 drop-shadow-sm">
-                  {eventConfig.lokasi}
-                </p>
-              </div>
+          {/* SUB-HEADER INFO PAMERAN (rasio tetap 16:9) */}
+          <div className={`sub-wrap relative isolate aspect-video w-full overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} flex items-center justify-center border-t border-white/10`}>
+            {subHasImg && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: subOp }} />}
+            <div aria-hidden="true" className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at center, rgba(${scrimRGB},${scrimA}) 60%, rgba(${scrimRGB},0) 100%)` }} />
+            <div className="flex w-full flex-col items-center px-[6%] text-center" style={{ textShadow: subLight ? '0 1px 1px rgba(255,255,255,.6)' : '0 1px 2px rgba(0,0,0,.5), 0 2px 14px rgba(0,0,0,.35)' }}>
+              <h2 className="sub-title font-extrabold uppercase">{eventConfig.namaKegiatan}</h2>
+              <p className="sub-loc flex items-center justify-center gap-[.5em] font-semibold"><MapPin className="sub-loc-icon shrink-0" /><span>{eventConfig.lokasi}</span></p>
             </div>
           </div>
         </div>
 
         {viewMode === 'form' && (
-          <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="rise space-y-5" style={{ '--d': '120ms' }}>
             <div className="card rounded-2xl p-5 shadow-sm text-center space-y-1.5">
               <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Daftar Kehadiran Pengunjung</h2>
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-100 rounded-full text-xs text-slate-700 font-medium">
@@ -972,7 +1021,7 @@ export default function App() {
         )}
 
         {viewMode === 'admin' && (
-          <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="rise space-y-5" style={{ '--d': '120ms' }}>
             <div className="card p-2 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center bg-slate-200 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
                 <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
@@ -1056,10 +1105,10 @@ export default function App() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-[13px] font-semibold text-slate-700">Gambar latar sub-header (opsional)</label>
-                    <p className="text-xs text-slate-500">Rasio 4:1. Gambar dipotong dan dikompres otomatis sebelum disimpan.</p>
+                    <p className="text-xs text-slate-500">Rasio 16:9, tampil sama di desktop dan HP. Gambar dipotong dan dikompres otomatis sebelum disimpan.</p>
                     {tempEventConfig.bannerImage && (
                       <div className="space-y-2">
-                        <div className={`relative isolate aspect-[4/1] overflow-hidden rounded-xl border border-slate-200 ${(THEMES[tempEventConfig.tema] || currentTheme).subHeaderBg}`}>
+                        <div className={`relative isolate aspect-video overflow-hidden rounded-xl border border-slate-200 ${(THEMES[tempEventConfig.tema] || currentTheme).subHeaderBg}`}>
                           <img src={tempEventConfig.bannerImage} alt="Pratinjau latar sub-header" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: (tempEventConfig.bannerOpacity ?? 55) / 100 }} />
                         </div>
                         <div className="flex items-center justify-between">
@@ -1102,7 +1151,7 @@ export default function App() {
       </div>
 
       {/* FOOTER APLIKASI */}
-      <footer className={`mt-auto py-6 px-4 text-center transition-colors duration-300 border-t border-black/10`} style={{ backgroundColor: currentTheme.hexHeader, color: '#FFFFFF' }}>
+      <footer className={`rise mt-auto py-6 px-4 text-center transition-colors duration-300 border-t border-black/10`} style={{ backgroundColor: currentTheme.hexHeader, color: '#FFFFFF', '--d': '240ms' }}>
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
           <p className="font-black tracking-wider uppercase opacity-95">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
           <p className="font-medium leading-relaxed opacity-85">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
