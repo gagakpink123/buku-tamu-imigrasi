@@ -221,7 +221,7 @@ html,body,button,input,select,textarea{font-family:'Plus Jakarta Sans',system-ui
 body{background:#F4F6FA;-webkit-tap-highlight-color:transparent}
 .app-root{background:#F4F6FA;color:#0F172A;line-height:1.5}
 .card{background:#fff;border:1px solid rgba(15,23,42,.07);box-shadow:0 1px 2px rgba(15,23,42,.04),0 14px 32px -18px rgba(15,23,42,.18)}
-.banner-img{opacity:.55;-webkit-mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);animation:fade-soft .9s ease both}
+.banner-img{opacity:.55;-webkit-mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);animation:banner-in .9s ease both}
 .fade-soft,.overlay-in{animation:fade-soft .22s ease both}
 .modal-card{animation:pop-in .3s cubic-bezier(.22,1,.36,1) both}
 .sheet[data-state=open]{animation:fade-soft .22s ease both}
@@ -230,6 +230,7 @@ body{background:#F4F6FA;-webkit-tap-highlight-color:transparent}
 .sheet[data-state=closed] .sheet-card{animation:pop-out .2s ease-in both}
 @keyframes fade-soft{from{opacity:0}to{opacity:1}}
 @keyframes fade-out{to{opacity:0}}
+@keyframes banner-in{from{opacity:0}}
 @keyframes pop-in{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes pop-out{to{opacity:0;transform:translateY(8px) scale(.97)}}
 button:not(:disabled):active{transform:scale(.98)}
@@ -435,7 +436,8 @@ export default function App() {
       teksSurvei: 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
       surveiUrl: 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
       tema: 'biru',
-      bannerImage: ''
+      bannerImage: '',
+      bannerOpacity: 55
     };
   });
   const [tempEventConfig, setTempEventConfig] = useState({ ...eventConfig });
@@ -518,7 +520,8 @@ export default function App() {
             teksSurvei: data.teksSurvei || 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
             surveiUrl: data.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
             tema: data.tema || 'biru',
-            bannerImage: data.bannerImage || ''
+            bannerImage: data.bannerImage || '',
+            bannerOpacity: typeof data.bannerOpacity === 'number' ? data.bannerOpacity : 55
           };
           setEventConfig(mergedData); 
           setTempEventConfig(mergedData);
@@ -554,11 +557,12 @@ export default function App() {
       showToast('Semua kolom pengaturan harus diisi!', 'error'); 
       return; 
     }
-    setEventConfig({ ...tempEventConfig }); 
-    localStorage.setItem('imigrasi_event_config', JSON.stringify(tempEventConfig));
+    const payload = { ...tempEventConfig, bannerImage: tempEventConfig.bannerImage || '', bannerOpacity: tempEventConfig.bannerOpacity ?? 55 };
+    setEventConfig(payload);
+    localStorage.setItem('imigrasi_event_config', JSON.stringify(payload));
     if (db) { 
       try { 
-        await setDoc(doc(db, "pengaturan", "infoPameran"), tempEventConfig); 
+        await setDoc(doc(db, "pengaturan", "infoPameran"), payload); 
         showToast('Info & Tema berhasil disinkronisasi ke Cloud!', 'success'); 
       } catch (err) { 
         showToast('Pengaturan disimpan secara lokal.', 'info'); 
@@ -855,7 +859,7 @@ export default function App() {
 
           {/* SUB-HEADER INFO PAMERAN */}
           <div className={`relative isolate overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} py-10 px-5 sm:py-14 sm:px-8 flex flex-col items-center justify-center border-t border-white/10`}>
-            {eventConfig.bannerImage && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" />}
+            {eventConfig.bannerImage && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: (eventConfig.bannerOpacity ?? 55) / 100 }} />}
             <div className="w-full max-w-2xl flex flex-col">
               <div className="text-center mb-5 sm:mb-6">
                 <h2 className="font-extrabold text-2xl sm:text-4xl uppercase tracking-wide drop-shadow-sm leading-snug">
@@ -1054,8 +1058,18 @@ export default function App() {
                     <label className="text-[13px] font-semibold text-slate-700">Gambar latar sub-header (opsional)</label>
                     <p className="text-xs text-slate-500">Rasio 4:1. Gambar dipotong dan dikompres otomatis sebelum disimpan.</p>
                     {tempEventConfig.bannerImage && (
-                      <div className="aspect-[4/1] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                        <img src={tempEventConfig.bannerImage} alt="Pratinjau latar sub-header" className="h-full w-full object-cover" />
+                      <div className="space-y-2">
+                        <div className={`relative isolate aspect-[4/1] overflow-hidden rounded-xl border border-slate-200 ${(THEMES[tempEventConfig.tema] || currentTheme).subHeaderBg}`}>
+                          <img src={tempEventConfig.bannerImage} alt="Pratinjau latar sub-header" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: (tempEventConfig.bannerOpacity ?? 55) / 100 }} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="banner-transparency" className="text-[13px] font-semibold text-slate-700">Transparansi gambar</label>
+                          <span className="text-xs font-semibold tabular-nums text-slate-600">{100 - (tempEventConfig.bannerOpacity ?? 55)}%</span>
+                        </div>
+                        <input id="banner-transparency" type="range" min="0" max="90" step="5" value={100 - (tempEventConfig.bannerOpacity ?? 55)}
+                          onChange={(e) => { const v = Number(e.target.value); setTempEventConfig((c) => ({ ...c, bannerOpacity: 100 - v })); }}
+                          className="h-11 w-full cursor-pointer accent-slate-900" />
+                        <p className="text-xs text-slate-500">Geser ke kanan agar gambar lebih transparan dan warna tema lebih terlihat. Pratinjau mengikuti tema yang dipilih.</p>
                       </div>
                     )}
                     <div className="flex flex-wrap gap-2">
