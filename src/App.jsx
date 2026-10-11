@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Camera, RefreshCw, PenTool, User, MapPin, Phone, Send, CheckCircle2,
   Settings, List, Copy, Check, Trash2, HelpCircle,
   X, AlertCircle, Download, FolderOpen, Lock, Unlock, ShieldCheck,
   Clock, Calendar, Search, Info, LogOut, ChevronRight, ChevronDown,
-  Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink, Palette
+  Edit3, Save, ArrowLeft, Trash, Printer, ExternalLink, Palette, ImagePlus, Crop
 } from 'lucide-react';
 
 // 1. IMPORT FIREBASE (Koneksi Database Cloud)
@@ -207,6 +208,212 @@ function ImmigrationLogo({ className = "w-10 h-10" }) {
   );
 }
 
+// ==========================================
+// DESIGN SYSTEM RINGAN (font, token, animasi)
+// ==========================================
+const BANNER_RATIO = 4; // lebar : tinggi sub-header desktop (4:1)
+const BANNER_W = 1600;  // lebar maksimum hasil kompres (px)
+const PHOTO_W = 800, PHOTO_H = 600; // foto pengunjung 4:3
+
+const GLOBAL_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+html,body,button,input,select,textarea{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:#F4F6FA;-webkit-tap-highlight-color:transparent}
+.app-root{background:#F4F6FA;color:#0F172A;line-height:1.5}
+.card{background:#fff;border:1px solid rgba(15,23,42,.07);box-shadow:0 1px 2px rgba(15,23,42,.04),0 14px 32px -18px rgba(15,23,42,.18)}
+.banner-img{opacity:.55;-webkit-mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);mask-image:linear-gradient(to bottom,#000 35%,transparent 100%);animation:fade-soft .9s ease both}
+.fade-soft,.overlay-in{animation:fade-soft .22s ease both}
+.modal-card{animation:pop-in .3s cubic-bezier(.22,1,.36,1) both}
+.sheet[data-state=open]{animation:fade-soft .22s ease both}
+.sheet[data-state=closed]{animation:fade-out .2s ease both}
+.sheet[data-state=open] .sheet-card{animation:pop-in .32s cubic-bezier(.22,1,.36,1) both}
+.sheet[data-state=closed] .sheet-card{animation:pop-out .2s ease-in both}
+@keyframes fade-soft{from{opacity:0}to{opacity:1}}
+@keyframes fade-out{to{opacity:0}}
+@keyframes pop-in{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pop-out{to{opacity:0;transform:translateY(8px) scale(.97)}}
+button:not(:disabled):active{transform:scale(.98)}
+button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid #0F172A;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+`;
+const GlobalStyles = () => <style>{GLOBAL_CSS}</style>;
+
+// Portal: semua pop-up dirender di <body> agar benar-benar di tengah LAYAR
+// (bukan tengah halaman) dan tidak ikut bergeser oleh transform/scroll elemen induk.
+const Portal = ({ children }) => createPortal(children, document.body);
+
+// Pop-up tengah layar dengan animasi masuk & keluar
+function Sheet({ open, onClose, label, className = 'max-w-md', children }) {
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => {
+    if (open) { setMounted(true); return; }
+    const t = setTimeout(() => setMounted(false), 220);
+    return () => clearTimeout(t);
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+  if (!mounted) return null;
+  return (
+    <Portal>
+      <div
+        className="sheet fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-900/60 p-4 backdrop-blur-sm"
+        data-state={open ? 'open' : 'closed'} role="dialog" aria-modal="true" aria-label={label}
+        onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className={`sheet-card card w-full rounded-xl p-4 sm:p-5 ${className}`}>{children}</div>
+      </div>
+    </Portal>
+  );
+}
+
+// Kamera: rasio tetap 4:3, tanpa mirror, kamera depan/belakang, crop otomatis dari tengah
+function CameraModal({ open, onClose, onCapture, onError, btn }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [facing, setFacing] = useState('user');
+  const [failed, setFailed] = useState(false);
+
+  const attach = (el) => {
+    videoRef.current = el;
+    if (el && streamRef.current && el.srcObject !== streamRef.current) {
+      el.srcObject = streamRef.current;
+      el.play?.().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setFailed(false);
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false })
+      .then((s) => {
+        if (cancelled) { s.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = s;
+        attach(videoRef.current);
+      })
+      .catch(() => { if (!cancelled) { setFailed(true); onError?.('Izin kamera ditolak atau perangkat tidak mendukung.'); } });
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, [open, facing]);
+
+  const shoot = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const r = PHOTO_W / PHOTO_H;
+    let sw = v.videoWidth, sh = v.videoHeight, sx = 0, sy = 0;
+    if (sw / sh > r) { const w = sh * r; sx = (sw - w) / 2; sw = w; } else { const h = sw / r; sy = (sh - h) / 2; sh = h; }
+    const c = document.createElement('canvas');
+    c.width = PHOTO_W; c.height = PHOTO_H;
+    c.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, PHOTO_W, PHOTO_H); // tanpa mirror
+    onCapture(c.toDataURL('image/jpeg', 0.72));
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} label="Ambil foto pengunjung" className="max-w-lg">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900"><Camera className="h-4 w-4" />Ambil foto pengunjung</h3>
+        <button type="button" onClick={onClose} aria-label="Tutup kamera" className="rounded-full bg-slate-100 p-2.5 text-slate-500 transition hover:bg-slate-200"><X className="h-4 w-4" /></button>
+      </div>
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-900">
+        <video ref={attach} autoPlay playsInline muted className="h-full w-full object-cover" />
+        {failed && <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-medium text-white/80">Kamera tidak dapat dibuka. Izinkan akses kamera di browser, lalu coba lagi.</p>}
+      </div>
+      <p className="mt-2 text-center text-xs text-slate-500">Hadapkan wajah ke kamera. Foto otomatis dipotong rasio 4:3.</p>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))} className="flex min-h-[48px] items-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">
+          <RefreshCw className="h-4 w-4" />{facing === 'user' ? 'Kamera belakang' : 'Kamera depan'}
+        </button>
+        <button type="button" onClick={shoot} disabled={failed} aria-label="Jepret foto" className={`flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold shadow-sm transition disabled:opacity-40 ${btn}`}>
+          <Camera className="h-4 w-4" />Jepret
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+// Crop gambar rasio tetap + kompres otomatis (JPEG, maks 1600px, ±200 KB)
+function CropDialog({ src, ratio, onCancel, onDone, btn }) {
+  const keep = useRef(src);
+  if (src) keep.current = src;
+  return (
+    <Sheet open={!!src} onClose={onCancel} label="Potong gambar latar" className="max-w-2xl">
+      {keep.current && <Cropper src={keep.current} ratio={ratio} onCancel={onCancel} onDone={onDone} btn={btn} />}
+    </Sheet>
+  );
+}
+
+function Cropper({ src, ratio, onCancel, onDone, btn }) {
+  const boxRef = useRef(null);
+  const drag = useRef(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const [img, setImg] = useState(null);
+  const [view, setView] = useState({ zoom: 1, cx: 0.5, cy: 0.5 });
+
+  useEffect(() => { const i = new Image(); i.onload = () => setImg(i); i.src = src; }, [src]);
+  useEffect(() => {
+    const el = boxRef.current;
+    const f = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    f();
+    const ro = new ResizeObserver(f); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const ready = !!img && box.w > 0;
+  const nw = img?.naturalWidth || 1, nh = img?.naturalHeight || 1;
+  const scale = Math.max(box.w / nw, box.h / nh) * view.zoom;
+  const dw = nw * scale, dh = nh * scale;
+  const clamp = (c, size, d) => Math.min(Math.max(c, size / 2 / d), 1 - size / 2 / d);
+  const cx = ready ? clamp(view.cx, box.w, dw) : 0.5, cy = ready ? clamp(view.cy, box.h, dh) : 0.5;
+
+  const onDown = (e) => { drag.current = { x: e.clientX, y: e.clientY, cx, cy }; e.currentTarget.setPointerCapture(e.pointerId); };
+  const onMove = (e) => {
+    const d = drag.current; if (!d || !ready) return;
+    setView((v) => ({ ...v, cx: clamp(d.cx - (e.clientX - d.x) / dw, box.w, dw), cy: clamp(d.cy - (e.clientY - d.y) / dh, box.h, dh) }));
+  };
+  const onUp = () => { drag.current = null; };
+
+  const apply = () => {
+    const sw = box.w / scale, sh = box.h / scale;
+    const ow = Math.min(BANNER_W, Math.round(sw)), oh = Math.round(ow / ratio);
+    const c = document.createElement('canvas'); c.width = ow; c.height = oh;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, ow, oh);
+    ctx.drawImage(img, cx * nw - sw / 2, cy * nh - sh / 2, sw, sh, 0, 0, ow, oh);
+    let q = 0.82, out = c.toDataURL('image/jpeg', q);
+    while (out.length > 260000 && q > 0.5) { q -= 0.08; out = c.toDataURL('image/jpeg', q); }
+    onDone(out);
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-base font-semibold text-slate-900"><Crop className="h-4 w-4" />Potong gambar latar</h3>
+        <button type="button" onClick={onCancel} aria-label="Tutup" className="rounded-full bg-slate-100 p-2.5 text-slate-500 transition hover:bg-slate-200"><X className="h-4 w-4" /></button>
+      </div>
+      <div ref={boxRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        style={{ aspectRatio: ratio }} className="relative w-full cursor-grab touch-none select-none overflow-hidden rounded-xl bg-slate-900 active:cursor-grabbing">
+        {ready && <img src={src} alt="" draggable={false} className="absolute max-w-none" style={{ width: dw, height: dh, left: box.w / 2 - cx * dw, top: box.h / 2 - cy * dh }} />}
+        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/40" />
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Geser gambar untuk mengatur posisi. Rasio 4:1 mengikuti ukuran sub-header.</p>
+      <label className="mt-2 flex items-center gap-3 text-[13px] font-semibold text-slate-700">Zoom
+        <input type="range" min="1" max="3" step="0.01" value={view.zoom} onChange={(e) => setView((v) => ({ ...v, zoom: +e.target.value }))} className="h-11 flex-1 accent-slate-900" />
+      </label>
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={onCancel} className="min-h-[48px] flex-1 rounded-xl bg-slate-100 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">Batal</button>
+        <button type="button" onClick={apply} disabled={!ready} className={`min-h-[48px] flex-1 rounded-xl text-sm font-bold transition disabled:opacity-40 ${btn}`}>Terapkan</button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [viewMode, setViewMode] = useState('form'); 
   const [adminTab, setAdminTab] = useState('list'); 
@@ -227,7 +434,8 @@ export default function App() {
       lokasi: 'Simpang Lima Gumul Kabupaten Kediri',
       teksSurvei: 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
       surveiUrl: 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
-      tema: 'biru'
+      tema: 'biru',
+      bannerImage: ''
     };
   });
   const [tempEventConfig, setTempEventConfig] = useState({ ...eventConfig });
@@ -249,8 +457,8 @@ export default function App() {
 
   const [photoData, setPhotoData] = useState(null);
   const [signatureData, setSignatureData] = useState(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState('user');
+  const [showCamera, setShowCamera] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null);
 
   const [scriptUrl, setScriptUrl] = useState("https://script.google.com/macros/s/AKfycbznj6AU5PMVPxtsjbQ1Whx-LXOOIrEW-0PAVgKr6zgCfFsZoKYlGMXf1sQdIXdNEKJq/exec");
   
@@ -268,8 +476,6 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
 
-  const videoRef = useRef(null);
-  const canvasPhotoRef = useRef(null);
   const signatureCanvasRef = useRef(null);
   const isDrawingRef = useRef(false);
 
@@ -311,7 +517,8 @@ export default function App() {
             lokasi: data.lokasi || 'Simpang Lima Gumul Kabupaten Kediri',
             teksSurvei: data.teksSurvei || 'Mohon kesediaan waktu untuk mengisi Survei Kepuasan Layanan berikut.',
             surveiUrl: data.surveiUrl || 'https://star-survei3a.kemenimipas.go.id/ly/H5lLWyie',
-            tema: data.tema || 'biru'
+            tema: data.tema || 'biru',
+            bannerImage: data.bannerImage || ''
           };
           setEventConfig(mergedData); 
           setTempEventConfig(mergedData);
@@ -327,7 +534,6 @@ export default function App() {
   };
 
   const handleOpenAdmin = () => {
-    stopCamera();
     if (!isAdminLoggedIn) { setLoginError(''); setShowLoginModal(true); } 
     else { setViewMode('admin'); handleRefreshSync(); }
   };
@@ -360,66 +566,13 @@ export default function App() {
     }
   };
 
-  const startCamera = async () => {
-    try {
-      setIsCameraActive(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: cameraFacing, width: { ideal: 640 }, height: { ideal: 480 } }, 
-        audio: false 
-      }); 
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 100);
-    } 
-    catch (err) { 
-      setIsCameraActive(false);
-      showToast('Izin akses kamera ditolak atau perangkat tidak mendukung.', 'error'); 
-    }
-  };
+  // Kunci scroll halaman saat ada pop-up (pop-up tidak bisa bergeser)
+  const anyModal = showLoginModal || showPdfModal || showSuccessModal || !!previewItem || showCamera || !!cropSrc;
+  useEffect(() => {
+    document.body.style.overflow = anyModal ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [anyModal]);
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) { 
-      videoRef.current.srcObject.getTracks().forEach(t => t.stop()); 
-      videoRef.current.srcObject = null; 
-    }
-    setIsCameraActive(false);
-  };
-
-  useEffect(() => { return () => stopCamera(); }, [viewMode]);
-
-  const switchCamera = () => { 
-    stopCamera(); 
-    setCameraFacing(p => p === 'user' ? 'environment' : 'user'); 
-    setTimeout(() => startCamera(), 300); 
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current) return; 
-    const video = videoRef.current; 
-    const canvas = canvasPhotoRef.current || document.createElement('canvas');
-    
-    const maxWidth = 400;
-    const videoWidth = video.videoWidth || 640;
-    const videoHeight = video.videoHeight || 480;
-    const scale = maxWidth / videoWidth;
-    
-    canvas.width = maxWidth; 
-    canvas.height = videoHeight * scale; 
-    
-    const ctx = canvas.getContext('2d');
-    if (cameraFacing === 'user') { 
-      ctx.translate(canvas.width, 0); 
-      ctx.scale(-1, 1); 
-    } 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    setPhotoData(canvas.toDataURL('image/jpeg', 0.5)); 
-    stopCamera(); 
-    showToast('Foto berhasil ditangkap & dikompres!', 'success');
-  };
-  
   const initSignaturePad = () => {
     const canvas = signatureCanvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d'); const rect = canvas.getBoundingClientRect();
@@ -449,6 +602,7 @@ export default function App() {
     if (!formData.whatsapp.trim()) { showToast('Masukkan Nomor WhatsApp', 'error'); return; }
     if (!formData.layanan) { showToast('Silakan pilih Keperluan / Layanan Stand', 'error'); return; }
     if (formData.layanan === 'Lainnya' && !formData.layananLainnya.trim()) { showToast('Sebutkan keperluan Anda secara spesifik', 'error'); return; }
+    if (!formData.kesan.trim()) { showToast('Masukkan Kesan/Pesan', 'error'); return; }
     if (!photoData) { showToast('Harap jepret foto pengunjung menggunakan kamera (Wajib)', 'error'); return; }
     if (!signatureData) { showToast('Harap bubuhkan tanda tangan (Wajib)', 'error'); return; }
 
@@ -652,45 +806,46 @@ export default function App() {
   );
 
   return (
-    <div className={`min-h-screen bg-[#F2F2F7] text-[#1C1C1E] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Display','SF_Pro_Text','Segoe_UI',Roboto,sans-serif] antialiased transition-all duration-700 ease-out transform ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+    <div className={`app-root min-h-[100dvh] flex flex-col antialiased transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      <GlobalStyles />
       {toastMessage && (
-        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
+        <Portal><div role="status" className={`fade-soft fixed top-4 left-1/2 transform -translate-x-1/2 z-[70] px-5 py-3 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.15)] flex items-center gap-2.5 text-xs font-medium border backdrop-blur-xl transition-all duration-300 ${toastMessage.type === 'success' ? 'bg-white/95 text-emerald-800 border-emerald-200' : 'bg-white/95 text-rose-800 border-rose-200'}`}>
           {toastMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
           <span>{toastMessage.msg}</span>
-        </div>
+        </div></Portal>
       )}
 
       <div className="max-w-4xl w-full mx-auto px-4 py-6 sm:py-8 flex flex-col flex-1 space-y-6">
         
         {/* CONTAINER HEADER & SUB-HEADER MENYATU DENGAN GRADIENT */}
-        <div className="rounded-3xl overflow-hidden shadow-xl border border-black/5 flex flex-col">
+        <div className="rounded-2xl overflow-hidden shadow-xl border border-black/5 flex flex-col">
           
           {/* HEADER UTAMA */}
           <div className={`${currentTheme.headerBg} ${currentTheme.headerText} p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all duration-300 z-10 relative`}>
             <div className="flex items-center gap-2.5 sm:gap-3.5">
               <ImmigrationLogo className="w-8 h-10 sm:w-9 sm:h-11" />
               <div className="flex flex-col">
-                <h1 className="text-[11px] sm:text-xs font-bold tracking-widest uppercase opacity-95">
+                <h1 className="text-xs sm:text-sm font-semibold tracking-wider uppercase">
                   KANTOR IMIGRASI KELAS II TPI KEDIRI
                 </h1>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/25 text-white/90 border border-white/10 text-[11px] sm:text-xs font-mono font-semibold backdrop-blur-md">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/25 text-white/90 border border-white/10 text-xs sm:text-xs font-mono font-semibold backdrop-blur-md">
                 <Clock className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
                 <span>{currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} WIB</span>
               </div>
               {viewMode === 'form' ? (
-                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20 shadow-sm">
+                <button onClick={handleOpenAdmin} className="flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20 shadow-sm">
                   <Lock className="w-3.5 h-3.5" /><span>Admin</span>
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
+                  <button onClick={() => setViewMode('form')} className="flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition backdrop-blur-md border border-white/20">
                     <ArrowLeft className="w-3.5 h-3.5" /><span>Form Tamu</span>
                   </button>
-                  <button onClick={handleAdminLogout} className="p-1.5 bg-rose-500/90 hover:bg-rose-600 text-white rounded-xl transition shadow-sm">
+                  <button onClick={handleAdminLogout} className="p-2.5 bg-rose-500/90 hover:bg-rose-600 text-white rounded-xl transition shadow-sm">
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
@@ -699,14 +854,15 @@ export default function App() {
           </div>
 
           {/* SUB-HEADER INFO PAMERAN */}
-          <div className={`${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} py-10 px-5 sm:py-14 sm:px-8 transition-all duration-300 flex flex-col items-center justify-center border-t border-white/10`}>
+          <div className={`relative isolate overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} py-10 px-5 sm:py-14 sm:px-8 flex flex-col items-center justify-center border-t border-white/10`}>
+            {eventConfig.bannerImage && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" />}
             <div className="w-full max-w-2xl flex flex-col">
               <div className="text-center mb-5 sm:mb-6">
                 <h2 className="font-extrabold text-2xl sm:text-4xl uppercase tracking-wide drop-shadow-sm leading-snug">
                   {eventConfig.namaKegiatan}
                 </h2>
               </div>
-              <div className="flex items-center justify-start gap-2.5 sm:gap-3 opacity-95 w-full md:pl-8">
+              <div className="flex items-center justify-center gap-2.5 sm:gap-3 w-full">
                 <MapPin className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 drop-shadow-sm" />
                 <p className="text-sm sm:text-base font-semibold tracking-wide flex items-center leading-none pt-0.5 drop-shadow-sm">
                   {eventConfig.lokasi}
@@ -718,36 +874,36 @@ export default function App() {
 
         {viewMode === 'form' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 shadow-sm text-center space-y-1.5">
-              <h2 className="text-lg sm:text-xl font-extrabold text-[#1C1C1E] tracking-tight">DAFTAR KEHADIRAN PENGUNJUNG</h2>
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#F2F2F7] rounded-full text-xs text-slate-700 font-medium">
+            <div className="card rounded-2xl p-5 shadow-sm text-center space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Daftar Kehadiran Pengunjung</h2>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-100 rounded-full text-xs text-slate-700 font-medium">
                 <Calendar className={`w-3.5 h-3.5 ${currentTheme.text}`} />
                 <span><strong>Hari/Tanggal:</strong> {formatTanggalIndo(currentTime)}</span>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              <div className="lg:col-span-6 bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+              <div className="lg:col-span-6 card rounded-2xl p-5 sm:p-6 shadow-sm space-y-4">
                 <div className="border-b border-slate-100 pb-3">
-                  <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><User className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Informasi Pengunjung</h3>
+                  <h3 className={`text-[15px] font-semibold text-slate-800 flex items-center gap-2`}><User className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Informasi Pengunjung</h3>
                 </div>
                 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Nama Lengkap <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                  <label className="text-[13px] font-semibold text-slate-700">Nama Lengkap</label>
+                  <input type="text" required value={formData.nama} onChange={(e) => setFormData({ ...formData, nama: e.target.value.toUpperCase() })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Alamat / Instansi <span className="text-rose-500">*</span></label>
-                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                  <label className="text-[13px] font-semibold text-slate-700">Alamat / Instansi</label>
+                  <input type="text" required value={formData.alamat} onChange={(e) => setFormData({ ...formData, alamat: e.target.value.toUpperCase() })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Nomor WhatsApp <span className="text-rose-500">*</span></label>
-                  <input type="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                  <label className="text-[13px] font-semibold text-slate-700">Nomor WhatsApp</label>
+                  <input type="tel" inputMode="tel" autoComplete="tel" required value={formData.whatsapp} onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-mono font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Keperluan / Layanan Stand <span className="text-rose-500">*</span></label>
+                  <label className="text-[13px] font-semibold text-slate-700">Keperluan / Layanan Stand</label>
                   <div className="relative">
-                    <select required value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none cursor-pointer pr-10`}>
+                    <select required value={formData.layanan} onChange={(e) => setFormData({ ...formData, layanan: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 cursor-pointer pr-10`}>
                       <option value="" disabled hidden>-- Pilih Keperluan --</option>
                       <option value="Informasi Layanan Paspor">Informasi Layanan Paspor</option>
                       <option value="Informasi Layanan WNA">Informasi Layanan WNA</option>
@@ -759,57 +915,51 @@ export default function App() {
                 </div>
                 {formData.layanan === 'Lainnya' && (
                   <div className="space-y-1.5 animate-in fade-in duration-200">
-                    <label className={`text-xs font-semibold ${currentTheme.text}`}>Sebutkan Keperluan Lainnya <span className="text-rose-500">*</span></label>
-                    <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className={`w-full px-4 py-3 rounded-2xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                    <label className={`text-xs font-semibold ${currentTheme.text}`}>Sebutkan Keperluan Lainnya</label>
+                    <input type="text" required value={formData.layananLainnya} onChange={(e) => setFormData({ ...formData, layananLainnya: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
                   </div>
                 )}
                 <div className="space-y-1.5 pt-2">
-                  <label className="text-xs font-semibold text-slate-700">Kesan/Pesan <span className="text-slate-400 font-normal">(Opsional)</span></label>
-                  <textarea value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition resize-none h-20`} />
+                  <label className="text-[13px] font-semibold text-slate-700">Kesan/Pesan</label>
+                  <textarea required value={formData.kesan} onChange={(e) => setFormData({ ...formData, kesan: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition resize-none h-20`} />
                 </div>
               </div>
 
               <div className="lg:col-span-6 space-y-5">
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3.5">
+                <div className="card rounded-2xl p-5 sm:p-6 shadow-sm space-y-3.5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><Camera className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Foto Pengunjung <span className="text-rose-500">*</span></h3>
-                    {photoData && <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Foto Siap</span>}
+                    <h3 className={`text-[15px] font-semibold text-slate-800 flex items-center gap-2`}><Camera className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Foto Pengunjung</h3>
+                    {photoData && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Foto Siap</span>}
                   </div>
-                  <div className="relative aspect-video w-full bg-[#E5E5EA] rounded-2xl overflow-hidden border border-slate-200/80 flex items-center justify-center shadow-inner">
-                    <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!isCameraActive ? 'hidden' : ''} ${cameraFacing === 'user' ? '-scale-x-100' : ''}`} />
-                    {!isCameraActive && photoData && <img src={resolveImageSrc(photoData)} alt="Foto" className="w-full h-full object-cover" />}
-                    {!isCameraActive && !photoData && (
-                      <div className="flex flex-col items-center justify-center p-4 text-center space-y-1.5">
-                        <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"><Camera className="w-5 h-5 text-slate-400" /></div>
-                        <p className="text-[11px] text-slate-500 font-medium">Kamera belum aktif.</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!isCameraActive ? (
-                      <button type="button" onClick={startCamera} className={`w-full py-2.5 px-4 ${currentTheme.button} text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 transition shadow-sm`}><Camera className="w-3.5 h-3.5" />{photoData ? 'Ambil Ulang (Kamera)' : 'Buka Kamera'}</button>
-                    ) : (
+                  <button type="button" onClick={() => setShowCamera(true)} aria-label={photoData ? 'Ambil ulang foto pengunjung' : 'Buka kamera untuk foto pengunjung'}
+                    className="group relative block aspect-[4/3] w-full overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-100 transition hover:border-slate-400">
+                    {photoData ? (
                       <>
-                        <button type="button" onClick={capturePhoto} className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition"><Check className="w-3.5 h-3.5" />Jepret Foto</button>
-                        <button type="button" onClick={switchCamera} className="p-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-2xl transition" title="Ganti Kamera"><RefreshCw className="w-3.5 h-3.5" /></button>
-                        <button type="button" onClick={stopCamera} className="p-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-2xl transition" title="Tutup Kamera"><X className="w-3.5 h-3.5" /></button>
+                        <img src={resolveImageSrc(photoData)} alt="Foto pengunjung" className="h-full w-full object-cover" />
+                        <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur"><RefreshCw className="h-3.5 w-3.5" />Ambil ulang</span>
                       </>
+                    ) : (
+                      <span className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm transition group-hover:scale-105"><Camera className="h-5 w-5 text-slate-500" /></span>
+                        <span className="text-sm font-semibold text-slate-700">Kamera belum aktif.</span>
+                        <span className="text-xs text-slate-500">Ketuk untuk membuka kamera</span>
+                      </span>
                     )}
-                  </div>
+                  </button>
                 </div>
 
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+                <div className="card rounded-2xl p-5 sm:p-6 shadow-sm space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h3 className={`text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5`}><PenTool className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Tanda Tangan <span className="text-rose-500">*</span></h3>
-                    <button type="button" onClick={clearSignature} className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition"><Trash2 className="w-3 h-3" /> Hapus</button>
+                    <h3 className={`text-[15px] font-semibold text-slate-800 flex items-center gap-2`}><PenTool className={`w-3.5 h-3.5 ${currentTheme.text}`} /> Tanda Tangan</h3>
+                    <button type="button" onClick={clearSignature} className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 px-2 py-2 transition"><Trash2 className="w-3 h-3" /> Hapus</button>
                   </div>
-                  <div className="relative w-full h-44 bg-[#F9F9FB] rounded-2xl overflow-hidden border border-slate-200/80 touch-none flex items-center justify-center shadow-inner">
+                  <div className="relative w-full aspect-[4/3] bg-[#F9F9FB] rounded-xl overflow-hidden border border-slate-200/80 touch-none flex items-center justify-center shadow-inner">
                     <canvas ref={signatureCanvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing} className="w-full h-full cursor-crosshair" />
                     {!signatureData && <div className="absolute pointer-events-none text-slate-400 text-xs font-medium px-4">Goreskan tanda tangan di sini</div>}
                   </div>
                 </div>
 
-                <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
+                <button type="submit" disabled={isSubmitting} className={`w-full py-4 px-5 ${currentTheme.button} text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition`}>
                   {isSubmitting ? <><RefreshCw className="w-4 h-4 animate-spin" /><span>Menyimpan & Mengunggah ke Drive...</span></> : <><Send className="w-4 h-4" /><span>Simpan Presensi Pengunjung</span></>}
                 </button>
               </div>
@@ -819,12 +969,12 @@ export default function App() {
 
         {viewMode === 'admin' && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-2 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center bg-[#E5E5EA] p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
-                <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
+            <div className="card p-2 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center bg-slate-200 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+                <button onClick={() => setAdminTab('list')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${adminTab === 'list' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
                   <List className="w-3.5 h-3.5" /><span>Daftar Pengunjung ({guestList.length})</span>
                 </button>
-                <button onClick={() => setAdminTab('event')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${adminTab === 'event' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
+                <button onClick={() => setAdminTab('event')} className={`flex-1 sm:flex-none flex items-center justify-center whitespace-nowrap gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all ${adminTab === 'event' ? `bg-white ${currentTheme.text} shadow-sm` : 'text-slate-600 hover:bg-black/5'}`}>
                   <Edit3 className="w-3.5 h-3.5" /><span>Info & Tema Pameran</span>
                 </button>
               </div>
@@ -832,50 +982,50 @@ export default function App() {
 
             {adminTab === 'list' && (
               <div className="space-y-4">
-                <div className="bg-white/90 backdrop-blur-xl border border-white/60 p-5 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                <div className="card p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                   <div>
-                    <h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><List className={`w-4 h-4 ${currentTheme.text}`} />Rekapitulasi Pengunjung ({guestList.length})</h2>
+                    <h2 className="text-base font-bold text-slate-900 flex items-center gap-2"><List className={`w-4 h-4 ${currentTheme.text}`} />Rekapitulasi Pengunjung ({guestList.length})</h2>
                     <p className="text-xs text-slate-500 font-medium">Foto aman tersimpan langsung di Google Drive Cloud</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-56">
                       <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
-                      <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#F2F2F7] border border-transparent text-xs text-[#1C1C1E] focus:bg-white ${currentTheme.border} outline-none font-medium transition`} />
+                      <input type="text" placeholder="Cari nama / alamat..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className={`w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-100 border border-slate-300 text-base sm:text-sm text-slate-900 min-h-[44px] focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 font-medium transition`} />
                     </div>
-                    <button onClick={handleRefreshSync} disabled={isSyncing} className={`px-4 py-2 ${currentTheme.button} disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm`}><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
+                    <button onClick={handleRefreshSync} disabled={isSyncing} className={`px-4 py-2.5 ${currentTheme.button} disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm`}><RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} /> Sync Data</button>
                     
-                    <button onClick={() => setShowPdfModal(true)} disabled={guestList.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
+                    <button onClick={() => setShowPdfModal(true)} disabled={guestList.length === 0} className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-sm">
                       <Printer className="w-3.5 h-3.5" /> Laporan PDF
                     </button>
                   </div>
                 </div>
 
                 {filteredGuests.length === 0 ? (
-                  <div className="bg-white/85 border border-white/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-2">
+                  <div className="card rounded-2xl p-12 text-center flex flex-col items-center justify-center space-y-2">
                     <User className="w-8 h-8 text-slate-400" />
                     <h3 className="text-sm font-semibold text-slate-800">Belum Ada Tamu Tercatat</h3>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {filteredGuests.map((guest) => (
-                      <div key={guest.id} className="bg-white/90 border border-white/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-sm transition-all relative overflow-hidden">
+                      <div key={guest.id} className="card rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-sm transition-all relative overflow-hidden">
                         <div className={`absolute top-0 left-0 w-1.5 h-full ${guest.driveStatus && guest.driveStatus.includes('Gagal') ? 'bg-rose-400' : 'bg-emerald-400'}`} title={guest.driveStatus} />
                         <div className="flex items-center gap-4 pl-2">
-                          <div onClick={() => setPreviewItem(guest)} className="w-14 h-14 rounded-2xl overflow-hidden bg-[#F2F2F7] border border-slate-200 flex-shrink-0 cursor-pointer shadow-inner">
+                          <div onClick={() => setPreviewItem(guest)} className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 cursor-pointer shadow-inner">
                             <img src={resolveImageSrc(guest.photo)} alt={guest.nama} className="w-full h-full object-cover" />
                           </div>
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-2"><h4 className="font-bold text-[#1C1C1E] text-sm">{guest.nama}</h4><span className={`text-[10px] px-2.5 py-0.5 rounded-full ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text} font-semibold`}>{guest.layanan}</span></div>
+                            <div className="flex items-center gap-2"><h4 className="font-bold text-slate-900 text-sm">{guest.nama}</h4><span className={`text-[11px] px-2.5 py-0.5 rounded-full ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text} font-semibold`}>{guest.layanan}</span></div>
                             <p className="text-xs text-slate-500 font-medium">{guest.alamat} • WhatsApp: <span className="font-mono">{guest.whatsapp}</span></p>
-                            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {translateDateToIndo(guest.hariTanggal)} • {guest.jamKunjungan}</p>
+                            <p className="text-xs text-slate-400 flex items-center gap-1 font-mono"><Clock className="w-3 h-3 text-slate-400" /> {translateDateToIndo(guest.hariTanggal)} • {guest.jamKunjungan}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                          <div className="hidden lg:flex flex-col items-end text-[11px] text-slate-400 font-mono">
+                          <div className="hidden lg:flex flex-col items-end text-xs text-slate-400 font-mono">
                             <span>ID: {guest.id}</span>
                             <span className="text-emerald-600 font-medium">{guest.driveStatus || 'Tersimpan'}</span>
                           </div>
-                          <button onClick={() => setPreviewItem(guest)} className={`px-4 py-2 bg-[#F2F2F7] hover:bg-slate-200 ${currentTheme.text} rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow-sm`}>
+                          <button onClick={() => setPreviewItem(guest)} className={`px-4 py-2.5 bg-slate-100 hover:bg-slate-200 ${currentTheme.text} rounded-xl text-xs font-semibold flex items-center gap-1 transition shadow-sm`}>
                             <span>Detail</span><ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -887,23 +1037,41 @@ export default function App() {
             )}
 
             {adminTab === 'event' && (
-              <div className="bg-white/90 border border-white/60 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
-                <div><h2 className="text-base font-bold text-[#1C1C1E] flex items-center gap-2"><Settings className={`w-4 h-4 ${currentTheme.text}`} />Pengaturan Utama Pameran</h2></div>
+              <div className="card rounded-2xl p-6 sm:p-7 shadow-sm space-y-5">
+                <div><h2 className="text-base font-bold text-slate-900 flex items-center gap-2"><Settings className={`w-4 h-4 ${currentTheme.text}`} />Pengaturan Utama Pameran</h2></div>
                 <form onSubmit={handleSaveEventConfig} className="space-y-4">
-                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-bold uppercase focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
-                  <div className="space-y-1.5"><label className="text-xs font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} /></div>
+                  <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-700">Nama Kegiatan Pameran</label><input type="text" required value={tempEventConfig.namaKegiatan} onChange={(e) => setTempEventConfig({ ...tempEventConfig, namaKegiatan: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-bold uppercase focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} /></div>
+                  <div className="space-y-1.5"><label className="text-[13px] font-semibold text-slate-700">Lokasi / Keterangan</label><input type="text" required value={tempEventConfig.lokasi} onChange={(e) => setTempEventConfig({ ...tempEventConfig, lokasi: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} /></div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Teks Ajakan Survei (Pop-up Berhasil)</label>
-                    <input type="text" required value={tempEventConfig.teksSurvei || ''} onChange={(e) => setTempEventConfig({ ...tempEventConfig, teksSurvei: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                    <label className="text-[13px] font-semibold text-slate-700">Teks Ajakan Survei (Pop-up Berhasil)</label>
+                    <input type="text" required value={tempEventConfig.teksSurvei || ''} onChange={(e) => setTempEventConfig({ ...tempEventConfig, teksSurvei: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
-                    <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-mono font-medium focus:bg-white ${currentTheme.border} outline-none transition`} />
+                    <label className="text-[13px] font-semibold text-slate-700">Link Website Survei Kepuasan Layanan</label>
+                    <input type="url" required value={tempEventConfig.surveiUrl} onChange={(e) => setTempEventConfig({ ...tempEventConfig, surveiUrl: e.target.value })} className={`w-full px-4 min-h-[48px] py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-mono font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 transition`} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[13px] font-semibold text-slate-700">Gambar latar sub-header (opsional)</label>
+                    <p className="text-xs text-slate-500">Rasio 4:1. Gambar dipotong dan dikompres otomatis sebelum disimpan.</p>
+                    {tempEventConfig.bannerImage && (
+                      <div className="aspect-[4/1] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                        <img src={tempEventConfig.bannerImage} alt="Pratinjau latar sub-header" className="h-full w-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 focus-within:ring-4 focus-within:ring-slate-900/10">
+                        <ImagePlus className="h-4 w-4" />{tempEventConfig.bannerImage ? 'Ganti gambar' : 'Pilih gambar'}
+                        <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return; const r = new FileReader(); r.onload = () => setCropSrc(r.result); r.readAsDataURL(f); }} />
+                      </label>
+                      {tempEventConfig.bannerImage && (
+                        <button type="button" onClick={() => setTempEventConfig({ ...tempEventConfig, bannerImage: '' })} className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-rose-50 px-4 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"><Trash2 className="h-4 w-4" />Hapus gambar</button>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-1.5 border-t border-slate-100 pt-4 mt-2">
-                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Tema Warna Aplikasi</label>
+                    <label className="text-[13px] font-semibold text-slate-700 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> Tema Warna Aplikasi</label>
                     <div className="relative">
-                      <select required value={tempEventConfig.tema || 'biru'} onChange={(e) => setTempEventConfig({ ...tempEventConfig, tema: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-2xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs sm:text-sm font-medium focus:bg-white ${currentTheme.border} outline-none cursor-pointer pr-10`}>
+                      <select required value={tempEventConfig.tema || 'biru'} onChange={(e) => setTempEventConfig({ ...tempEventConfig, tema: e.target.value })} className={`w-full appearance-none px-4 py-3 rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base sm:text-[15px] font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5 cursor-pointer pr-10`}>
                         {Object.entries(THEMES).map(([key, themeObj]) => (
                           <option key={key} value={key}>{themeObj.label}</option>
                         ))}
@@ -911,7 +1079,7 @@ export default function App() {
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
-                  <button type="submit" className={`mt-2 flex items-center gap-2 px-5 py-3 ${currentTheme.button} text-white rounded-2xl font-bold text-xs shadow-sm transition`}><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
+                  <button type="submit" className={`mt-2 flex items-center gap-2 px-5 py-3 ${currentTheme.button} text-white rounded-xl font-bold text-xs shadow-sm transition`}><Save className="w-4 h-4" /><span>Simpan Perubahan</span></button>
                 </form>
               </div>
             )}
@@ -924,30 +1092,35 @@ export default function App() {
         <div className="max-w-4xl mx-auto space-y-1.5 text-xs">
           <p className="font-black tracking-wider uppercase opacity-95">KANTOR IMIGRASI KELAS II TPI KEDIRI</p>
           <p className="font-medium leading-relaxed opacity-85">Jl. Jawa No. 135, Bedrek Selatan, Desa Grogol, Kecamatan Grogol, Kabupaten Kediri, Jawa Timur 64151</p>
-          <p className="text-[10px] font-mono pt-1 opacity-70">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
+          <p className="text-[11px] font-mono pt-1 opacity-70">&copy; {new Date().getFullYear()} Kantor Imigrasi Kediri • All Rights Reserved</p>
         </div>
       </footer>
 
+      <CameraModal open={showCamera} onClose={() => setShowCamera(false)} btn={currentTheme.button} onError={(m) => showToast(m, 'error')}
+        onCapture={(d) => { setPhotoData(d); setShowCamera(false); showToast('Foto berhasil diambil.', 'success'); }} />
+      <CropDialog src={cropSrc} ratio={BANNER_RATIO} btn={currentTheme.button} onCancel={() => setCropSrc(null)}
+        onDone={(d) => { setTempEventConfig((c) => ({ ...c, bannerImage: d })); setCropSrc(null); }} />
+
       {showLoginModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-xs w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
-            <div className="text-center space-y-1"><div className={`w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-2xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text}`}><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-[#1C1C1E]">Login Petugas Admin</h3></div>
+        <Portal><div className="overlay-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="modal-card bg-white border border-slate-200/70 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.15)] scale-100">
+            <div className="text-center space-y-1"><div className={`w-12 h-12 mx-auto mb-2 flex items-center justify-center rounded-xl ${currentTheme.lightBg} border ${currentTheme.lightBorder} ${currentTheme.text}`}><ShieldCheck className="w-6 h-6" /></div><h3 className="text-base font-bold text-slate-900">Login Petugas Admin</h3></div>
             {loginError && <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 text-center font-medium">{loginError}</div>}
             <form onSubmit={handleAdminLogin} className="space-y-2.5">
-              <input type="text" required placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white ${currentTheme.border} outline-none`} />
-              <input type="password" required placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className={`w-full px-4 py-2.5 rounded-xl bg-[#F2F2F7] border border-transparent text-[#1C1C1E] text-xs font-medium focus:bg-white ${currentTheme.border} outline-none`} />
-              <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button><button type="submit" className={`flex-1 py-2.5 ${currentTheme.button} text-white font-bold rounded-xl text-xs transition shadow-sm`}>Masuk</button></div>
+              <input type="text" required autoFocus autoComplete="username" aria-label="Username" placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className={`w-full px-4 min-h-[48px] rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5`} />
+              <input type="password" required autoComplete="current-password" aria-label="Password" placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className={`w-full px-4 min-h-[48px] rounded-xl bg-slate-50 border border-slate-300 text-slate-900 text-base font-medium focus:bg-white ${currentTheme.border} outline-none focus:ring-4 focus:ring-slate-900/5`} />
+              <div className="flex gap-2 pt-2"><button type="button" onClick={() => setShowLoginModal(false)} className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button><button type="submit" className={`flex-1 py-2.5 ${currentTheme.button} text-white font-bold rounded-xl text-xs transition shadow-sm`}>Masuk</button></div>
             </form>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {showPdfModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+        <Portal><div className="overlay-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="modal-card bg-white border border-slate-200/70 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-[#1C1C1E]">Format Laporan PDF</h3>
-              <button onClick={() => setShowPdfModal(false)} className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"><X className="w-4 h-4" /></button>
+              <h3 className="font-bold text-slate-900">Format Laporan PDF</h3>
+              <button onClick={() => setShowPdfModal(false)} className="p-2.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 transition"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <button onClick={() => handleExecutePDF('all')} className={`w-full py-3.5 ${currentTheme.button} text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition shadow-sm`}>
@@ -958,53 +1131,53 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {showSuccessModal && lastSubmittedGuest && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
+        <Portal><div className="overlay-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="modal-card bg-white border border-slate-200/70 rounded-2xl max-w-sm w-full p-7 text-center shadow-2xl space-y-4">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner"><CheckCircle2 className="w-8 h-8" /></div>
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-[#1C1C1E]">Presensi Berhasil Disimpan</h3>
+              <h3 className="text-lg font-bold text-slate-900">Presensi Berhasil Disimpan</h3>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">Terima kasih telah berkunjung ke Stand Kantor Imigrasi Kediri.</p>
               <p className={`text-xs ${currentTheme.text} font-semibold leading-relaxed pt-1`}>
                 {eventConfig.teksSurvei}
               </p>
             </div>
-            <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-2xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
+            <button onClick={handleOpenSurvei} className={`w-full py-3.5 mt-2 ${currentTheme.button} text-white rounded-xl text-xs font-black tracking-widest flex items-center justify-center gap-2 transition shadow-md`}>
               <span>SURVEI</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
+        </div></Portal>
       )}
 
       {previewItem && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-2xl border border-white/60 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <Portal><div className="overlay-in fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="modal-card bg-white border border-slate-200/70 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-[#1C1C1E]">Detail Kartu Pengunjung</h3>
-              <button onClick={() => setPreviewItem(null)} className="p-1.5 rounded-full bg-[#F2F2F7] text-slate-500 hover:text-[#1C1C1E] transition"><X className="w-4 h-4" /></button>
+              <h3 className="text-sm font-bold text-slate-900">Detail Kartu Pengunjung</h3>
+              <button onClick={() => setPreviewItem(null)} className="p-2.5 rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 transition"><X className="w-4 h-4" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-[11px] text-slate-400 font-semibold uppercase">Foto Selfie</label><div className="mt-1 aspect-video bg-[#F2F2F7] rounded-2xl overflow-hidden border border-slate-200"><img src={resolveImageSrc(previewItem.photo)} alt="Foto" className="w-full h-full object-cover" /></div></div>
-              <div><label className="text-[11px] text-slate-400 font-semibold uppercase">Tanda Tangan</label><div className="mt-1 aspect-video bg-white rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner"><img src={resolveImageSrc(previewItem.signature)} alt="TTD" className="max-h-full max-w-full object-contain" /></div></div>
+              <div><label className="text-xs text-slate-400 font-semibold uppercase">Foto Selfie</label><div className="mt-1 aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden border border-slate-200"><img src={resolveImageSrc(previewItem.photo)} alt="Foto" className="w-full h-full object-cover" /></div></div>
+              <div><label className="text-xs text-slate-400 font-semibold uppercase">Tanda Tangan</label><div className="mt-1 aspect-[4/3] bg-white rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center p-1 shadow-inner"><img src={resolveImageSrc(previewItem.signature)} alt="TTD" className="max-h-full max-w-full object-contain" /></div></div>
             </div>
             
-            <div className="bg-[#F2F2F7] rounded-2xl p-4 space-y-2 text-xs">
+            <div className="bg-slate-100 rounded-xl p-4 space-y-2 text-xs">
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Status Data:</span><span className={`font-semibold ${previewItem.driveStatus && previewItem.driveStatus.includes('Gagal') ? 'text-rose-600' : 'text-emerald-600'}`}>{previewItem.driveStatus || 'Tersimpan'}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Tanggal Kunjungan:</span><span className={`font-semibold ${currentTheme.text} text-right`}>{translateDateToIndo(previewItem.hariTanggal)} • {previewItem.jamKunjungan}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-[#1C1C1E] text-sm text-right">{previewItem.nama}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Nama:</span><span className="font-bold text-slate-900 text-sm text-right">{previewItem.nama}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Instansi:</span><span className="text-slate-700 font-medium text-right">{previewItem.alamat}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">WhatsApp:</span><span className="text-slate-700 font-mono font-medium">{previewItem.whatsapp}</span></div>
               <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Keperluan:</span><span className="text-slate-700 font-medium text-right">{previewItem.layanan}</span></div>
-              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Titik GPS:</span><span className="text-slate-700 font-mono font-medium text-right text-[10px]"><a href={`https://maps.google.com/?q=${previewItem.gps}`} target="_blank" rel="noreferrer" className={`${currentTheme.text} hover:underline`}>{previewItem.gps}</a></span></div>
-              <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium text-[10px]">{previewItem.ipAddress}</span></div>
+              <div className="flex justify-between border-b border-slate-200 pb-1.5"><span className="text-slate-500 font-medium">Titik GPS:</span><span className="text-slate-700 font-mono font-medium text-right text-[11px]"><a href={`https://maps.google.com/?q=${previewItem.gps}`} target="_blank" rel="noreferrer" className={`${currentTheme.text} hover:underline`}>{previewItem.gps}</a></span></div>
+              <div className="flex justify-between"><span className="text-slate-500 font-medium">IP Address:</span><span className="text-slate-700 font-mono font-medium text-[11px]">{previewItem.ipAddress}</span></div>
             </div>
 
             {previewItem.kesan && previewItem.kesan !== '-' && (
-              <div className={`${currentTheme.lightBg} border ${currentTheme.lightBorder} rounded-2xl p-4`}>
+              <div className={`${currentTheme.lightBg} border ${currentTheme.lightBorder} rounded-xl p-4`}>
                 <span className={`text-xs ${currentTheme.text} font-bold block mb-1`}>Kesan / Pesan:</span>
                 <p className="text-xs text-slate-700 italic leading-relaxed">{previewItem.kesan}</p>
               </div>
@@ -1012,10 +1185,10 @@ export default function App() {
 
             <div className="flex gap-2">
               <button onClick={() => handleDeleteSingleGuest(previewItem.id)} className="flex-1 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"><Trash2 className="w-4 h-4" /> Hapus Permanen</button>
-              <button onClick={() => setPreviewItem(null)} className="flex-1 py-3 bg-[#E5E5EA] hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">Tutup</button>
+              <button onClick={() => setPreviewItem(null)} className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">Tutup</button>
             </div>
           </div>
-        </div>
+        </div></Portal>
       )}
     </div>
   );
