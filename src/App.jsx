@@ -195,6 +195,10 @@ const translateDateToIndo = (dateStr) => {
   return res;
 };
 
+const LOGO_FALLBACK = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg/1024px-Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg.png";
+// Posisi logo pada header Laporan PDF: 'left' atau 'right' (teks tetap di tengah halaman)
+const PDF_LOGO_SIDE = 'left';
+
 function ImmigrationLogo({ className = "w-10 h-10" }) {
   return (
     <img 
@@ -203,7 +207,7 @@ function ImmigrationLogo({ className = "w-10 h-10" }) {
       className={`${className} object-contain filter drop-shadow-sm`} 
       onError={(e) => {
         e.target.onerror = null; 
-        e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg/1024px-Logo_of_the_Directorate_General_of_Immigration_%28Indonesia%29.svg.png";
+        e.target.src = LOGO_FALLBACK;
       }}
     />
   );
@@ -232,9 +236,10 @@ body{background:#F4F6FA;-webkit-tap-highlight-color:transparent}
 @keyframes fade-soft{from{opacity:0}to{opacity:1}}
 @keyframes fade-out{to{opacity:0}}
 .sub-wrap{container-type:inline-size}
-.sub-title{font-size:clamp(1rem,4.6vw,2.4rem);font-size:clamp(1rem,5.4cqw,2.75rem);line-height:1.2;letter-spacing:.02em;margin-bottom:.4em;text-wrap:balance}
-.sub-loc{font-size:clamp(.75rem,2.6vw,1rem);font-size:clamp(.75rem,2.5cqw,1.125rem);line-height:1.35;text-wrap:balance}
-.sub-loc-icon{width:1.25em;height:1.25em}
+.sub-text{padding:0 6% 5% 8%}
+.sub-title{font-size:clamp(.9rem,3.6vw,1.5rem);font-size:clamp(.9rem,3.4cqw,1.5rem);line-height:1.25;letter-spacing:.03em;margin:0 0 .35em;text-wrap:pretty}
+.sub-loc{font-size:clamp(.72rem,2.2vw,.9375rem);font-size:clamp(.72rem,2cqw,.9375rem);line-height:1.4;text-wrap:pretty}
+.sub-loc-icon{width:1.1em;height:1.1em;margin-top:.15em}
 .splash{transition:transform .85s cubic-bezier(.76,0,.24,1);will-change:transform}
 .splash[data-state=out]{transform:translateY(-100%)}
 .splash-content{animation:splash-in .8s cubic-bezier(.22,1,.36,1) both;transition:opacity .35s ease,transform .5s ease}
@@ -754,6 +759,7 @@ export default function App() {
     const dateRangeStr = getEventDateRange();
     const reversedGuestList = [...guestList].reverse();
     const hexTheme = currentTheme.hexHeader;
+    const logoHtml = `<img class="hr-logo ${PDF_LOGO_SIDE}" alt="Logo Imigrasi" src="${window.location.origin}/logo-imigrasi.png" onerror="this.onerror=null;this.src='${LOGO_FALLBACK}'" />`;
 
     const thHtml = `
       <tr>
@@ -814,7 +820,10 @@ export default function App() {
         <title>Laporan Daftar Pengunjung - Imigrasi Kediri</title>
         <style>
           body { font-family: Arial, sans-serif; color: #1c1c1e; margin: 15px; background: #ffffff; }
-          .header-report { text-align: center; margin-bottom: 25px; border-bottom: 2px solid ${hexTheme}; padding-bottom: 15px; }
+          .header-report { display: grid; grid-template-columns: 96px 1fr 96px; align-items: center; column-gap: 12px; margin-bottom: 25px; border-bottom: 2px solid ${hexTheme}; padding-bottom: 15px; }
+          .header-report .hr-text { text-align: center; }
+          .hr-logo { display: block; height: 76px; width: auto; max-width: 92px; object-fit: contain; justify-self: start; }
+          .hr-logo.right { justify-self: end; }
           .header-report h2 { margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; color: ${hexTheme}; letter-spacing: 0.5px; }
           .header-report p { margin: 4px 0; font-size: 10.5pt; color: #333; }
           .date-header { margin-top: 30px; margin-bottom: 10px; font-size: 11pt; color: ${hexTheme}; border-left: 4px solid ${hexTheme}; padding-left: 8px; font-weight: bold; }
@@ -830,12 +839,16 @@ export default function App() {
       </head>
       <body>
         <div class="header-report">
+          ${PDF_LOGO_SIDE === 'left' ? logoHtml : '<div></div>'}
+          <div class="hr-text">
           <h2>DAFTAR PENGUNJUNG STAND KANTOR IMIGRASI KEDIRI</h2>
           <p><b>${eventConfig.namaKegiatan} | Lokasi: ${eventConfig.lokasi}</b></p>
           <p style="font-weight: bold; color: ${hexTheme}; font-size: 9.5pt; margin-top: 6px;">Periode: ${dateRangeStr}</p>
+          </div>
+          ${PDF_LOGO_SIDE === 'right' ? logoHtml : '<div></div>'}
         </div>
         ${tablesContent}
-        <script>window.onload = function() { setTimeout(() => { window.print(); }, 600); };</script>
+        <script>window.onload = function() { var pend = Array.prototype.slice.call(document.images).filter(function(i) { return !i.complete; }).map(function(i) { return new Promise(function(r) { i.addEventListener('load', r); i.addEventListener('error', r); }); }); Promise.all(pend).then(function() { setTimeout(function() { window.print(); }, 500); }); };</script>
       </body>
       </html>
     `;
@@ -848,12 +861,8 @@ export default function App() {
     g.whatsapp.includes(searchQuery) || g.layanan.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Scrim lembut di belakang teks sub-header agar kontras terjaga (>= 4.5:1) di semua tema & opasitas gambar
   const subLight = !!currentTheme.subHeaderLight;
-  const subHasImg = !!eventConfig.bannerImage;
   const subOp = (eventConfig.bannerOpacity ?? 55) / 100;
-  const scrimRGB = subLight ? '255,255,255' : '0,0,0';
-  const scrimA = subLight ? (subHasImg ? Math.min(0.7, 0.4 + 0.3 * subOp) : 0) : (subHasImg ? Math.min(0.62, 0.38 + 0.22 * subOp) : 0.36);
 
   return (
     <div className={`app-root min-h-[100dvh] flex flex-col antialiased ${phase === 'loading' ? 'is-loading' : 'is-ready'}${leaving ? ' is-leaving' : ''}`}>
@@ -914,13 +923,12 @@ export default function App() {
             </div>
           </div>
 
-          {/* SUB-HEADER INFO PAMERAN (rasio tetap 16:9) */}
-          <div className={`sub-wrap relative isolate aspect-video w-full overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} flex items-center justify-center border-t border-white/10`}>
-            {subHasImg && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: subOp }} />}
-            <div aria-hidden="true" className="absolute inset-0 -z-10" style={{ background: `radial-gradient(ellipse at center, rgba(${scrimRGB},${scrimA}) 60%, rgba(${scrimRGB},0) 100%)` }} />
-            <div className="flex w-full flex-col items-center px-[6%] text-center" style={{ textShadow: subLight ? '0 1px 1px rgba(255,255,255,.6)' : '0 1px 2px rgba(0,0,0,.5), 0 2px 14px rgba(0,0,0,.35)' }}>
-              <h2 className="sub-title font-extrabold uppercase">{eventConfig.namaKegiatan}</h2>
-              <p className="sub-loc flex items-center justify-center gap-[.5em] font-semibold"><MapPin className="sub-loc-icon shrink-0" /><span>{eventConfig.lokasi}</span></p>
+          {/* SUB-HEADER INFO PAMERAN (rasio tetap 16:9, teks di bawah, rata kiri) */}
+          <div className={`sub-wrap relative isolate aspect-video w-full overflow-hidden ${currentTheme.subHeaderBg} ${currentTheme.subHeaderText} border-t border-white/10`}>
+            {eventConfig.bannerImage && <img src={eventConfig.bannerImage} alt="" aria-hidden="true" className="banner-img absolute inset-0 -z-10 h-full w-full object-cover" style={{ opacity: subOp }} />}
+            <div className="sub-text absolute inset-x-0 bottom-0 text-left" style={{ textShadow: subLight ? 'none' : '0 1px 2px rgba(0,0,0,.35)' }}>
+              <h2 className="sub-title font-bold uppercase">{eventConfig.namaKegiatan}</h2>
+              <p className="sub-loc flex items-start gap-[.45em] font-medium"><MapPin className="sub-loc-icon shrink-0" /><span>{eventConfig.lokasi}</span></p>
             </div>
           </div>
         </div>
